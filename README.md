@@ -17,7 +17,16 @@
 ## 시스템 아키텍처
 본 프로젝트는 LangGraph를 사용하여 상태 중심의 순환 그래프 구조로 설계되었습니다.
 
-1. **Supervisor**: 전체 흐름 제어 및 노드 라우팅
+1. **Hierarchical**: 계층형 구조 도입
+    1.1. Main Supervisor
+    전체 워크플로우의 거시적인 방향을 결정합니다.
+    - **Context Injection**: 이전 포스트 메타데이터 주입 지시
+    - **Critic & Final**: 최종 검토 및 VectorDB 업데이트 지시
+
+    1.2. Sub-Graphs (하위 작업 그룹)
+    실제 콘텐츠 생성을 담당하며, 내부적으로 Sub-Supervisor가 세부 작업을 조율합니다.
+    - **Intro Graph**: 첫 포스팅 전용 작성 파이프라인 (작성 → 자체 리뷰)
+    - **Continuation Graph**: 2편 이상 연속 포스팅 파이프라인 (맥락 분석 → 작성 → 자체 리뷰)
 2. **Context Injection**: 이전 포스트 맥락 불러오기
 3. **Intro/Continuation Graph**: 포스트 순서에 따른 맞춤형 집필
 4. **Critic**: 일관성 및 품질 검토 (반려 시 재작업 루프)
