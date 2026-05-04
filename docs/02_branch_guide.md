@@ -49,21 +49,37 @@ git add .
 git commit -m "feat: 컨텍스트 주입 노드 기본 로직 구현"
 ```
 
-### 단계 4: `master` 브랜치로 머지
-작업이 완료되고 테스트가 끝나면 `master` 브랜치로 병합
+### 단계 4: 원격 저장소 푸시 및 PR 생성
+작업이 완료된 브랜치를 원격에 올리고, GitHub 등에서 Pull Request(PR)를 생성
 ```bash
+git push origin feat/phase0-context-injection
+# 이후 GitHub UI에서 'Compare & pull request' 버튼 클릭하여 PR 생성
+```
+
+### 단계 5: 검토 및 병합 (Merge)
+PR에서 변경 사항을 최종 확인한 후, 이상이 없으면 master로 병합(Merge)을 승인
+
+### 단계 6: 로컬 동기화 및 브랜치 삭제
+병합이 완료되면 로컬의 master를 최신화하고 사용한 브랜치는 삭제
+```bash
+# 1. 로컬 master 최신화
 git checkout master
-git merge feat/context-injection
-```
+git pull origin master
 
-### 단계 5: 브랜치 삭제
-병합이 완료된 브랜치는 깔끔하게 삭제
-```bash
+# 2. 로컬 브랜치 삭제
 git branch -d feat/context-injection
+
+# 3. 원격 브랜치 삭제
+git push origin --delete feat/context-injection
 ```
 
-## 5. 주의사항
-1. 단일 책임: 하나의 브랜치가 여러 기능을 동시에 수정 X
-2. 수시 커밋: 커밋 하나가 너무 크면 리뷰가 어렵다. 의미 있는 단위로 쪼개기
-3. 병합 전 테스트: `master`에 합치기 전에 반드시 `main.py`등을 실행해서 정상 작동 여부를 확인
+## 4. 주의사항
+
+- 단일 책임: 하나의 브랜치가 여러 기능을 동시에 수정 X
+
+- 수시 커밋: 커밋 하나가 너무 크면 리뷰가 어렵다. 의미 있는 단위로 쪼개기
+
+- 병합 전 테스트: PR을 승인하기 전에 반드시 로컬 혹은 테스트 환경에서 정상 작동 여부를 확인
+
+- PR 활용: 혼자 작업하더라도 PR의 'Files changed' 탭을 통해 셀프 코드 리뷰를 진행할 것
 
