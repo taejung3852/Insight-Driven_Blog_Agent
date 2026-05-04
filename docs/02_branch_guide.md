@@ -83,3 +83,4 @@ git push origin --delete feat/context-injection
 
 - PR 활용: 혼자 작업하더라도 PR의 'Files changed' 탭을 통해 셀프 코드 리뷰를 진행할 것
 
+- 충돌 해결: PR에 충돌이 발생하면 반드시 로컬에서 해결하고 다시 푸시한 뒤 리뷰를 요청한다.

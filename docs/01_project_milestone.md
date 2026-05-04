@@ -11,12 +11,12 @@
     - Context Injection 노드를 통해서 VectorDB에 저장된 이전 포스팅의 내용을 들고와서 맥락을 유지
     - Critic 노드를 통해서 글이 잘 작성되었는지 판단
 
-- [ ] **Phase 1: 상태(State) 정의 및 더미 노드 구축 (현재 진행 중)**
+- [✔️] **Phase 1: 상태(State) 정의 및 더미 노드 구축 (현재 진행 중)**
     - `BlogGraphState`에 스키마 작성
     - 에이전트 연동 전, 로직 테스트용 `dummy_nodes` 생성
         - 로직을 자세히 구현하지 않고  연결이 잘 되었는지만 확인하는 용도
 
-- [ ] **Phase 2: LangGraph기반 workflow 뼈대 조립 및 라우팅 테스트**
+- [✔️] **Phase 2: LangGraph기반 workflow 뼈대 조립 및 라우팅 테스트**
   - `graph.py`에서 노드 간 Edge 연결
   - 루프 및 Edge, Conditional Edge 동작 검증
 
