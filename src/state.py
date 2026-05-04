@@ -19,9 +19,11 @@ class BlogState(TypedDict):
         'critic'
         ]]
     sub_next_step: Optional[Literal[    # 하위 그래프들의 경로 선택 목록
-        'reviewer',
-        'gen_draft_content',
-        'gen_final_content'
+        'content_structure',
+        'image_analysis',
+        'humanized_draft',
+        'internal_editor',
+        'finish'
         ]]    
     draft_content: Optional[str]        # 초안
     final_content: Optional[str]        # 최종안
@@ -31,3 +33,10 @@ class BlogState(TypedDict):
     max_revisions: int                  # 최대 거절 횟수
 
     
+    learning_insights: Optional[str]       # 사용자의 깨달음 (입력 데이터)
+    captured_images: Optional[list[str]]   # 이미지 데이터 (없으면 빈 리스트)
+    
+    content_structure: Optional[str]       # Structure 워커의 결과물
+    image_placement_guide: Optional[str]   # Image Analysis 워커의 결과물
+    polished_content: Optional[str]        # Editor 워커의 결과물
+    # ==========================================

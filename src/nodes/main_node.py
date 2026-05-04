@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
-from src.graph import BlogState
+from src.state import BlogState
 
 load_dotenv()
 
@@ -24,7 +24,7 @@ def supervisor_agent(state: BlogState) -> dict:
         next_step = "context_injection"
         
     elif not draft:
-        next_step = "intro_graph" if is_first else "continuation_graph"
+        next_step = "intro_graph" if is_first else "continuation_graph" # 각 서브 그래프로 옮겨가게 된다.
         
     elif not verdict:
         next_step = "critic"
@@ -44,56 +44,17 @@ def context_injection_agent(state: BlogState) -> dict:
     print("[Node: Context Injection] VectorDB에서 이전 글의 메타데이터를 가져옵니다.")
     # RAG/VectorDB 연동은 Phase4에서 진행하므로 우선 현상태 유지
     return {'accumulated_context': '이전 포스트들의 3요소(용어, 결론, 문체) 데이터'}
+def image_analysis_agent(state: BlogState) -> dict:
+    print("[Node: Image Analysis] 첨부된 이미지 배치 가이드 생성 중...")
+    images = state.get('captured_images', [])
+    if not images:
+        return {"image_placement_guide": "첨부된 이미지 없음."}
+    return {"image_placement_guide": "이미지 1은 서론 뒤에 배치하세요."} # 임시 더미 응답
 
-def intro_graph_agent(state: BlogState) -> dict:
-    print("[Node: Intro Graph] 1편 작성을 시작합니다.")
-    topic = state.get('current_topic')
-    tone = state.get('tone_and_manner')
-
-    sys_msg = f"""
-    **Role:**
-    당신은 10년차 IT 전문 블로그 편집장입니다.
-
-    **Objective:**
-    작성된 블로그 포스트 초안이 주어진 톤앤매너를 유지해서 작성해주세요, 논리적 비약이나 기술적 오류 없게 잘 작성해주세요.
-
-    **Context:**
-    - 요구되는 톤앤매너: {tone}
-    """
-    human_msg = f"주제: {topic}"
-
-    response = writer_llm.invoke([SystemMessage(content=sys_msg), HumanMessage(content=human_msg)])
-
-    return {
-        'draft_content': response.content,
-        'review_verdict': None,
-        'messages': [response]
-    }
-
-def continuation_graph_agent(state: BlogState) -> dict:
-    print("[Node: Continuation Graph] LLM이 이전 맥락을 바탕으로 연재글을 작성합니다...")
-    topic = state.get('current_topic')
-    tone = state.get('tone_and_manner')
-    context = state.get('accumulated_context')
-    
-    system_prompt = f"""당신은 전문 블로그 작성자입니다. {tone} 톤으로 연재 포스팅을 작성하세요.
-    반드시 다음의 이전 맥락을 자연스럽게 이어받아야 합니다: {context}"""
-    human_prompt = f"이번 포스팅 주제: {topic}"
-    
-    response = writer_llm.invoke([
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=human_prompt)
-    ])
-    
-    return {
-        "draft_content": response.content,
-        "review_verdict": None,
-        "messages": [response]
-    }
 
 def critic_agent(state: BlogState) -> dict:
     print("[Node: Critic] LLM 비평가가 초안을 검토합니다...")
-    draft = state.get('draft_content')
+    polished = state.get('polished_content')
     tone = state.get('tone_and_manner')
     current_count = state.get('revision_count', 0)
 
@@ -107,7 +68,7 @@ def critic_agent(state: BlogState) -> dict:
     
     response = critic_llm.invoke([
         SystemMessage(content=system_prompt),
-        HumanMessage(content=f"검토할 초안:\n{draft}")
+        HumanMessage(content=f"검토할 초안:\n{polished}")
     ])
     
     feedback = response.content
@@ -116,7 +77,7 @@ def critic_agent(state: BlogState) -> dict:
     if "VERDICT: OK" in feedback.upper():
         print("  -> ✅ 최종안 승인")
         return {
-            "final_content": draft, 
+            "final_content": polished, 
             "review_verdict": "OK",
             "messages": [response]
         }
@@ -125,6 +86,7 @@ def critic_agent(state: BlogState) -> dict:
         return {
             "revision_count": current_count + 1, 
             "review_verdict": "REVISE",
+            "polished_content": None,
             "messages": [response]
         }
 
