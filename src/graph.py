@@ -22,7 +22,7 @@ workflow.add_edge(START, 'supervisor')
 
 def route_from_supervisor(state: BlogState) -> str:
     # 아직은 supervisor_agent가 state의 'next_step'을 업데이트 했다고 가정
-    return state.next_step
+    return state.get('next_step')
 
 workflow.add_conditional_edges('supervisor', route_from_supervisor,
                                {'context_injection' : 'context_injection',

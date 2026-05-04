@@ -16,7 +16,7 @@
     - 에이전트 연동 전, 로직 테스트용 `dummy_nodes` 생성
         - 로직을 자세히 구현하지 않고  연결이 잘 되었는지만 확인하는 용도
 
-- [ ] **Phase 2: LangGraph기반 workflow 뼈대 조립 및 라우팅 테스트**
+- [✔️] **Phase 2: LangGraph기반 workflow 뼈대 조립 및 라우팅 테스트**
   - `graph.py`에서 노드 간 Edge 연결
   - 루프 및 Edge, Conditional Edge 동작 검증
 
