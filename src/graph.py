@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, START, END
 from src.state import BlogState
-from src.nodes.dummy_nodes import (
+from src.nodes.llm_nodes import (
     supervisor_agent,
     context_injection_agent,
     intro_graph_agent,
