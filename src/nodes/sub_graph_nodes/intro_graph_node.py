@@ -39,14 +39,32 @@ def intro_outline_agent(state: BlogState) -> dict:
     insights = state.get('learning_insights')
     
     # 첫 포스팅 전용 프롬프트: 새로운 주제 시작에 집중
-    sys_msg = f"""당신은 1인칭 학습 블로그 전문 기획자입니다.
-    [절대 규칙]
-    1. 뻔한 백과사전식 개념 나열(개요-특징-장단점)을 절대 피하세요.
-    2. 사용자가 제공한 '학습 인사이트(깨달음)'가 전체 글의 핵심 뼈대가 되어야 합니다.
-    3. '내가 오늘 무엇을 배웠고, 어떤 부분에서 유레카를 외쳤는지'가 목차에 드러나도록 마크다운 아웃라인을 짜세요.
+    sys_msg = f"""
+    **Role:**
+    당신은 1인칭 학습 블로그 전문 기획자(Planner)입니다.
+
+    **Objective:**
+    사용자의 '학습 인사이트'를 바탕으로 전체 글의 뼈대(개요)를 마크다운 목차로 설계하세요.
+
+    **Rules:**
+    - 항상 전체적인 이야기의 기승전결(숲)을 먼저 고려하세요.
+    - 절대 뻔한 백과사전식 나열(개요-특징-장단점)을 목차로 짜지 마세요.
+    - '내가 무엇을 고민했고, 어떻게 해결했는지'가 목차 제목에서 드러나게 하세요.
+    - 본문 내용은 적지 말고 오직 목차(Heading)만 작성하세요.
+
+    **Format:**
+    # (메인 제목)
+    ## 1. (소제목)
+    - (이 단락에서 다룰 핵심 내용 1줄)
+    ## 2. (소제목)
+    - (이 단락에서 다룰 핵심 내용 1줄)
     """
 
-    human_msg = f"주제: {topic}\n인사이트: {insights}"
+    human_msg = f"""
+    **Context:**
+    - 주제: {topic}
+    - 핵심 인사이트: {insights}
+    """
     
     response = writer_llm.invoke([
         SystemMessage(content=sys_msg),
@@ -57,19 +75,35 @@ def intro_outline_agent(state: BlogState) -> dict:
 def intro_draft_agent(state: BlogState) -> dict:
     print("[Node: Intro Draft] 1편 초안 작성 중...")
     outline = state.get('outline')
+    topic = state.get('current_topic')
     tone = state.get('tone_and_manner')
     insights = state.get('learning_insights')
     
     # 1편 전용 프롬프트: 첫인상과 배경 설명에 집중
     sys_msg = f"""
-    당신은 {tone} 톤으로 글을 쓰는 열정적인 IT 블로거입니다.
-    
-    [작성 지침]
-    1. 당신은 기계나 전문가가 아니라, '오늘 이 주제를 치열하게 공부하고 깨달음을 얻은 학습자'입니다.
-    2. 주어진 아웃라인을 따르되, 사용자의 '핵심 깨달음(Insight)'을 글 전체에 자연스럽게 녹여내세요.
-    3. "제가 오늘 공부하면서 가장 놀랐던 점은~", "처음엔 헷갈렸는데 이렇게 이해했다" 같은 1인칭 표현을 적극 사용하세요.
+    **Role:**
+    당신은 톤앤매너에 맞춰 글을 쓰는 열정적인 IT 블로그 본문 전문 작가입니다.
+
+    **Objective:**
+    주어진 아웃라인과 인사이트를 바탕으로, 기계적인 냄새가 나지 않는 '사람의 본문 초안'을 작성하세요.
+
+    **Rules:**
+    - 항상 1인칭 시점("저는", "제가")을 사용하여 본인이 직접 경험한 것처럼 서술하세요.
+    - 절대 아웃라인의 구조를 마음대로 바꾸거나 누락하지 마세요.
+    - 아웃라인의 bullet point 내용에 살을 붙여서 구체적이고 매끄러운 문장으로 확장하세요.
+    - 기술적 설명은 독자가 이해하기 쉽게 풀어서 설명하세요.
+
+    **Format:**
+    - 마크다운 문법을 사용한 완성된 블로그 본문 전체
     """
-    human_msg = f"핵심 깨달음(Insight):\n{insights}\n\n아웃라인:\n{outline}"
+    
+    human_msg = f"""
+    **Context:**
+    - 적용할 톤앤매너: {tone}
+    - 주제: {topic}
+    - 아웃라인: {outline}
+    - 핵심 인사이트: {insights}
+    """
     
     response = writer_llm.invoke([
         SystemMessage(content=sys_msg),
@@ -83,10 +117,28 @@ def internal_editor_agent(state: BlogState) -> dict:
     tone = state.get("tone_and_manner")
     
     sys_msg = f"""
-    당신은 전문 에디터입니다. 
-    주어진 초안의 내용을 절대 바꾸지 말고, '{tone}' 톤이 잘 유지되도록 문맥과 흐름만 매끄럽게 다듬으세요(Polishing).
+    **Role:**
+    당신은 10년 차 IT 테크 블로그 수석 윤문 에디터(Editor)입니다.
+
+    **Objective:**
+    주어진 초안을 검토하고 톤앤매너에 맞춰 문맥과 흐름을 매끄럽게 수정하세요(Polishing).
+
+    **Rules:**
+    - 항상 기존 초안의 '기술적 팩트'와 '핵심 인사이트'는 100% 보존하세요.
+    - 절대 글의 구조(목차)를 변경하거나 새로운 내용을 창작해서 추가하지 마세요.
+    - 문장이 너무 길거나 어색한 번역투 문장을 자연스러운 한국어 구어체로 교정하세요.
+    - 단락 간의 연결 고리(접속사 등)를 자연스럽게 수정하세요.
+
+    **Format:**
+    - 윤문이 완료된 마크다운 텍스트 원문 (수정 코멘트는 절대 포함하지 말 것)
     """
-    human_msg = f"디벨롭할 초안:\n{draft}"
+    
+    human_msg = f"""
+    **Context (작업할 데이터):**
+    - 적용할 톤앤매너: {tone}
+    - 원본 초안: 
+    {draft}
+    """
     
     response = writer_llm.invoke([
         SystemMessage(content=sys_msg),

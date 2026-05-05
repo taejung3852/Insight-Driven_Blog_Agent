@@ -55,19 +55,26 @@ def retrieve_past_context(current_topic: str, k: int = 1) -> str:
          return "아직 저장된 이전 포스팅 맥락이 없습니다."
 
     # 현재 주제(current_topic)를 쿼리로 날려서 가장 비슷한 과거 글을 찾기 
-    """TODO:
-    - 이전 글들에서 어떤 부분을 중점적으로 찾아낼지, 쿼리를 자세히 작성해야한다.
-    - 어떤 주제의 변수를 지우기 위해서는 정확한 틀이 잡히기 위해 자세한 프롬프트를 던져야한다.
-    - 예시
-        [이전 글 핵심 요약]
-            - 클로저 개념 설명
-            - nonlocal 필요 여부
-            - 클래스 vs 클로저 비교
+    query = f"""
+    **Role:**
+    당신은 VectorDB 검색 쿼리 최적화 전문가입니다.
 
-        [이전 글 결론]
-            - 상태 유지가 핵심
+    **Objective:**
+    주어진 '현재 블로그 주제'를 바탕으로, 과거 데이터베이스에서 가장 연관성 높은 문서를 찾기 위한 '검색 키워드 묶음'을 생성하세요.
+
+    **Context:**
+    - 현재 주제: {current_topic}
+
+    **Rules:**
+    - 문장형태로 작성하지 마세요. (예: "~에 대해 알려줘" 금지)
+    - 현재 주제와 관련된 IT 기술 용어, 개념어, 동의어만 3~5개 추출하세요.
+    - 쉼표로 구분된 단어들만 출력하세요.
+
+    **Format:**
+    키워드1, 키워드2, 키워드3
     """
-    results = db.similarity_search(current_topic, k=k) 
+    
+    results = db.similarity_search(query, k=k) 
     
     if not results:
         return "관련된 이전 포스팅 맥락을 찾지 못했습니다."
