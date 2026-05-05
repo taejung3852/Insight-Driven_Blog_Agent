@@ -4,10 +4,10 @@ from src.nodes.main_node import (
     supervisor_agent,
     context_injection_agent,
     critic_agent,
-    final_agent,
-    image_analysis_agent,
-    image_placement_agent
+    final_agent
 )
+
+from src.nodes.sub_graph_nodes.common_node import image_analysis_agent, image_placement_agent
 from src.nodes.sub_graph_nodes.intro_graph_node import (
     intro_supervisor_agent,
     intro_outline_agent,

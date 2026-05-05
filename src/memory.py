@@ -28,7 +28,7 @@ def get_vector_db():
         persist_directory=DB_DIR
     )
 
-def save_blog_context(topic: str, context_text: str):
+def save_blog_context(topic: str, context_text: str, tone: str = ''):
     """
     완성된 블로그 글의 핵심 맥락을 VectorDB에 저장합니다.
     """
@@ -37,7 +37,7 @@ def save_blog_context(topic: str, context_text: str):
     # Document 객체로 포장해서 저장 (메타데이터로 주제를 달아줍니다)
     raw_doc = Document(
         page_content=context_text,
-        metadata={"topic": topic}
+        metadata={"topic": topic, 'tone': tone}
     )
     docs = text_splitter.split_documents([raw_doc])
     db.add_documents(docs)
@@ -122,3 +122,13 @@ def delete_topic(topic: str) -> bool:
     except Exception as e:
         print(f"토픽 삭제 중 에러 발생: {e}")
         return False
+
+def get_topic_tone(topic: str) -> str:
+    """특정 방에 저장된 톤앤매너를 가져옵니다."""
+    db = get_vector_db()
+    result = db._collection.get(where={"topic": topic}, include=["metadatas"])
+    if result and result.get("metadatas"):
+        for meta in result["metadatas"]:
+            if meta and "tone" in meta and meta["tone"]:
+                return meta["tone"]
+    return ""
