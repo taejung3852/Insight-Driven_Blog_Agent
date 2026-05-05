@@ -24,12 +24,12 @@
   - `llm_nodes.py` 생성 및 OpenAI 연동
   - CARE 프레임워크(역할-목표-규칙-출력형식) 기반 프롬프트 템플릿 문서화(`docs/04_prompt_guide.md`)
   
-- [ ] **Phase 4: 사용자 맞춤형 서브 그래프(Sub-graph) 구축 및 멀티모달 연동**
+- [x] **Phase 4: 사용자 맞춤형 서브 그래프(Sub-graph) 구축 및 멀티모달 연동**
   - 학습 인사이트 기반 아웃라인 설계 (`content_structure_agent`)
   - 캡처 이미지(Base64) 분석 및 최적 배치 가이드 (`image_analysis_agent`)
   - 기계적 냄새를 지운 휴먼라이징 초안 작성 (`humanized_draft_agent`)
   - 메인 그래프(`supervisor`)와 서브 그래프(계층형 라우팅) 통합
 
-- [ ] **Phase 5: VectorDB 연동 (Context Injection) 및 최종 테스트**
+- [x] **Phase 5: VectorDB 연동 (Context Injection) 및 최종 테스트**
   - 이전 포스팅들의 '핵심 메타데이터 3요소' 추출 및 저장 로직 구현
   - RAG 기반 맥락 주입 테스트
