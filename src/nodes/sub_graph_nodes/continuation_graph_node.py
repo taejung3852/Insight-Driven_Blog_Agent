@@ -16,12 +16,12 @@ def continuation_supervisor_agent(state: BlogState) -> dict:
     
     if not state.get("outline"):
         next_worker = "outline"
-    elif not state.get("image_placement_guide"):
-        next_worker = "image_analysis"
     elif not state.get("draft_content"):
         next_worker = "draft"
     elif not state.get("polished_content"):
         next_worker = "internal_editor"
+    elif state.get('captured_images') and not state.get('image_information'):
+        next_worker = 'image_analysis'
     else:
         print("  -> 연재글 서브 그래프 작업 완료! 메인 Supervisor로 복귀합니다.")
         return{
@@ -38,13 +38,33 @@ def continuation_outline_agent(state: BlogState) -> dict:
     accumulated_context = state.get('accumulated_context') # 핵심: 이전 맥락 주입!
     
     # 연재글 전용 프롬프트: 이전 맥락과의 연결성에 집중
-    sys_msg = f"""당신은 1인칭 학습 블로그 전문 기획자입니다.
-    [절대 규칙]
-    1. 뻔한 백과사전식 개념 나열(개요-특징-장단점)을 절대 피하세요.
-    2. 사용자가 제공한 '학습 인사이트(깨달음)'가 전체 글의 핵심 뼈대가 되어야 합니다.
-    3. '내가 오늘 무엇을 배웠고, 어떤 부분에서 유레카를 외쳤는지'가 목차에 드러나도록 마크다운 아웃라인을 짜세요.
+    sys_msg = f"""
+    **Role:**
+    당신은 1인칭 학습 블로그 전문 기획자(Planner)입니다.
+
+    **Objective:**
+    사용자의 '학습 인사이트'를 바탕으로 전체 글의 뼈대(개요)를 마크다운 목차로 설계하세요.
+
+    **Rules:**
+    - 항상 전체적인 이야기의 기승전결(숲)을 먼저 고려하세요.
+    - 절대 뻔한 백과사전식 나열(개요-특징-장단점)을 목차로 짜지 마세요.
+    - '내가 무엇을 고민했고, 어떻게 해결했는지'가 목차 제목에서 드러나게 하세요.
+    - 본문 내용은 적지 말고 오직 목차(Heading)만 작성하세요.
+
+    **Format:**
+    # (메인 제목)
+    ## 1. (소제목)
+    - (이 단락에서 다룰 핵심 내용 1줄)
+    ## 2. (소제목)
+    - (이 단락에서 다룰 핵심 내용 1줄)
     """
-    human_msg = f"이전 맥락: {accumulated_context}\n이번 주제: {topic}\n인사이트: {insights}"
+    
+    human_msg = f"""
+    **Context:**
+    - 주제: {topic}
+    - 핵심 인사이트: {insights}
+    - 이전 맥락(연재글인 경우): {accumulated_context}
+    """
     
     response = writer_llm.invoke([
         SystemMessage(content=sys_msg),
@@ -55,38 +75,35 @@ def continuation_outline_agent(state: BlogState) -> dict:
 def continuation_draft_agent(state: BlogState) -> dict:
     print("[Node: Continuation Draft] 연재글 초안 작성 중...")
     outline = state.get('outline')
+    topic = state.get('current_topic')
     tone = state.get('tone_and_manner')
     accumulated_context = state.get('accumulated_context')
     insights = state.get('learning_insights')
     
     # 연재글 전용 프롬프트: 이전 문체 유지 및 서사 연결
     sys_msg = f"""
-    당신은 {tone} 톤으로 글을 쓰는 IT 블로거이며, 현재 하나의 주제를 연재 중입니다.
+    **Role:**
+    당신은 톤앤매너에 맞춰 글을 쓰는 열정적인 IT 블로그 본문 전문 작가입니다.
 
-    [역할 정의]
-    - 당신은 전문가가 아니라, 오늘 직접 공부하며 깨달음을 얻은 학습자입니다.
-    - 이전 글들과 하나의 흐름으로 이어지는 '연재 글'을 작성해야 합니다.
+    **Objective:**
+    주어진 아웃라인과 인사이트를 바탕으로, 기계적인 냄새가 나지 않는 '사람의 본문 초안'을 작성하세요.
 
-    [작성 지침]
-    1. 반드시 이전 글의 흐름을 이어받아 자연스럽게 시작하세요. (맥락 단절 금지)
-    2. 이전 글에서 이미 설명한 내용은 반복하지 말고, 이어서 확장하세요.
-    3. 사용자의 핵심 깨달음(Insight)을 글 전체에 자연스럽게 녹여내세요.
-    4. "내가 오늘 공부하면서 느낀 점은", "처음엔 헷갈렸는데 이렇게 이해했다" 같은 1인칭 학습자 시점을 유지하세요.
-    5. 단순 요약이 아니라, 이전 글 위에 새로운 이해를 쌓는 방식으로 작성하세요.
+    **Rules:**
+    - 항상 1인칭 시점("저는", "제가")을 사용하여 본인이 직접 경험한 것처럼 서술하세요.
+    - 절대 아웃라인의 구조를 마음대로 바꾸거나 누락하지 마세요.
+    - 아웃라인의 bullet point 내용에 살을 붙여서 구체적이고 매끄러운 문장으로 확장하세요.
+    - 기술적 설명은 독자가 이해하기 쉽게 풀어서 설명하세요.
+
+    **Format:**
+    - 마크다운 문법을 사용한 완성된 블로그 본문 전체
     """
+    
     human_msg = f"""
-    [이전 연재 글 맥락]
-    {accumulated_context}
-
-    [핵심 깨달음 (Insight)]
-    {insights}
-
-    [이번 글 아웃라인]
-    {outline}
-
-    [작성 요청]
-    - 위 '이전 연재 글 맥락'을 기반으로 자연스럽게 이어지는 다음 글을 작성하세요.
-    - 글 초반에 이전 내용과 자연스럽게 연결되는 흐름을 반드시 포함하세요.
+    **Context:**
+    - 적용할 톤앤매너: {tone}
+    - 주제: {topic}
+    - 아웃라인: {outline}
+    - 핵심 인사이트: {insights}
     """
     
     response = writer_llm.invoke([
@@ -103,11 +120,27 @@ def continuation_internal_editor_agent(state: BlogState) -> dict:
     
     # 1편 에디터와 다르게 '이전 맥락'과의 연결성을 강조합니다.
     sys_msg = f"""
-    당신은 전문 에디터입니다. 
-    주어진 초안의 내용을 절대 바꾸지 말고, '{tone}' 톤이 잘 유지되도록 다듬으세요.
-    특히 이전 글의 맥락({context})과 자연스럽게 이어지도록 문맥과 흐름을 중점적으로 교정하세요(Polishing).
+    **Role:**
+    당신은 10년 차 IT 테크 블로그 수석 윤문 에디터(Editor)입니다.
+
+    **Objective:**
+    작성된 초안을 검토하고, 톤앤매너에 맞춰 문맥과 흐름을 매끄럽게 수정하세요(Polishing).
+
+    **Rules:**
+    - 항상 기존 초안의 '기술적 팩트'와 '핵심 인사이트'는 100% 보존하세요.
+    - 절대 글의 구조(목차)를 변경하거나 새로운 내용을 창작해서 추가하지 마세요.
+    - 문장이 너무 길거나 어색한 번역투 문장을 자연스러운 한국어 구어체로 교정하세요.
+    - 단락 간의 연결 고리(접속사 등)를 자연스럽게 수정하세요.
+
+    **Format:**
+    - 윤문이 완료된 마크다운 텍스트 원문 (수정 코멘트는 절대 포함하지 말 것)
     """
-    human_msg = f"디벨롭할 초안:\n{draft}"
+    
+    human_msg = f"""
+    **Context:**
+    - 적용할 톤앤매너: {tone}
+    - 원본 초안: {draft}
+    """
     
     response = writer_llm.invoke([
         SystemMessage(content=sys_msg),

@@ -5,7 +5,8 @@ from src.nodes.main_node import (
     context_injection_agent,
     critic_agent,
     final_agent,
-    image_analysis_agent
+    image_analysis_agent,
+    image_placement_agent
 )
 from src.nodes.sub_graph_nodes.intro_graph_node import (
     intro_supervisor_agent,
@@ -31,6 +32,7 @@ intro_workflow.add_node('outline', intro_outline_agent)
 intro_workflow.add_node("image_analysis", image_analysis_agent)
 intro_workflow.add_node("draft", intro_draft_agent)
 intro_workflow.add_node("internal_editor", internal_editor_agent)
+intro_workflow.add_node('image_placement', image_placement_agent)
 
 def route_intro_graph(state: BlogState):
     step = state.get('sub_next_step')
@@ -52,7 +54,8 @@ intro_workflow.add_conditional_edges("intro_supervisor", route_intro_graph,
                                     )
 
 intro_workflow.add_edge("outline", "intro_supervisor")
-intro_workflow.add_edge("image_analysis", "intro_supervisor")
+intro_workflow.add_edge("image_analysis", "image_placement") # 분석 끝나면 삽입으로
+intro_workflow.add_edge("image_placement", "intro_supervisor")
 intro_workflow.add_edge("draft", "intro_supervisor")
 intro_workflow.add_edge("internal_editor", "intro_supervisor")
 
@@ -69,6 +72,8 @@ continuation_workflow.add_node("outline", continuation_outline_agent)
 continuation_workflow.add_node("image_analysis", image_analysis_agent) # 공통 사용
 continuation_workflow.add_node("draft", continuation_draft_agent)
 continuation_workflow.add_node("internal_editor", continuation_internal_editor_agent)
+continuation_workflow.add_node('image_placement', image_placement_agent)
+
 
 def route_continuation_graph(state: BlogState):
     step = state.get('sub_next_step')
@@ -90,7 +95,8 @@ continuation_workflow.add_conditional_edges('continuation_supervisor', route_con
                                         )
 
 continuation_workflow.add_edge("outline", "continuation_supervisor")
-continuation_workflow.add_edge("image_analysis", "continuation_supervisor")
+continuation_workflow.add_edge("image_analysis", "image_placement")
+continuation_workflow.add_edge("image_placement", "continuation_supervisor")
 continuation_workflow.add_edge("draft", "continuation_supervisor")
 continuation_workflow.add_edge("internal_editor", "continuation_supervisor")
 

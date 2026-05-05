@@ -33,3 +33,8 @@
 - [x] **Phase 5: VectorDB 연동 (Context Injection) 및 최종 테스트**
   - 이전 포스팅들의 '핵심 메타데이터 3요소' 추출 및 저장 로직 구현
   - RAG 기반 맥락 주입 테스트
+
+- [ ] **Phase 6: 사용자 친화적 GUI 구축 (Streamlit) 및 프롬프트 고도화**
+  - Streamlit 기반 웹 인터페이스(`app.py`) 구축 (사이드바 설정, 메인 입력창, 파일 업로드 등)
+  - LangGraph 워크플로우와 GUI 연동 및 실시간 처리 상태 시각화
+  - GUI 테스트 환경을 활용한 에이전트 프롬프트(Context Engineering) 마이크로 튜닝 및 글 퀄리티 극대화

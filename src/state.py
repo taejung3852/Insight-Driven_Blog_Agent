@@ -37,6 +37,6 @@ class BlogState(TypedDict):
     captured_images: Optional[list[str]]   # 이미지 데이터 (없으면 빈 리스트)
     
     outline: Optional[str]       # Structure 워커의 결과물
-    image_placement_guide: Optional[str]   # Image Analysis 워커의 결과물
+    image_information: Optional[str]   # Image Analysis 워커의 결과물
     polished_content: Optional[str]        # Editor 워커의 결과물
     # ==========================================
