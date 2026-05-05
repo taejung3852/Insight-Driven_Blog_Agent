@@ -3,6 +3,7 @@ from langchain_chroma import Chroma
 from langchain_text_splitters import CharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
+import streamlit as st
 
 load_dotenv()
 # 1. 임베딩 모델 설정
@@ -18,7 +19,7 @@ text_splitter = CharacterTextSplitter(
 # 2. 로컬 DB 저장소 경로
 DB_DIR = "./chroma_db"
 COLLECTION_NAME = "blog_memory"
-
+@st.cache_resource
 def get_vector_db():
     """ChromaDB 인스턴스를 초기화하고 반환합니다."""
     return Chroma(
