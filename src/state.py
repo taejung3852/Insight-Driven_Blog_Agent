@@ -9,6 +9,7 @@ class BlogState(TypedDict):
     is_first_post: bool                 # 분기용, 첫 포스팅인지 여부
     current_topic: str                  # 작성할 내용의 주제
     tone_and_manner: str                # 블로그 말투
+    learning_insights: Optional[str]       # 사용자의 깨달음 (입력 데이터)
 
     # 상태 업데이투 과정에서 채워지는 필드들 (반드시 None으로 기본값 지정)
     accumulated_context: str            # 이전 포스팅들의 요약본(맥락)
@@ -19,9 +20,9 @@ class BlogState(TypedDict):
         'critic'
         ]]
     sub_next_step: Optional[Literal[    # 하위 그래프들의 경로 선택 목록
-        'content_structure',
+        'outline',
         'image_analysis',
-        'humanized_draft',
+        'draft',
         'internal_editor',
         'finish'
         ]]    
@@ -33,10 +34,9 @@ class BlogState(TypedDict):
     max_revisions: int                  # 최대 거절 횟수
 
     
-    learning_insights: Optional[str]       # 사용자의 깨달음 (입력 데이터)
     captured_images: Optional[list[str]]   # 이미지 데이터 (없으면 빈 리스트)
     
-    content_structure: Optional[str]       # Structure 워커의 결과물
+    outline: Optional[str]       # Structure 워커의 결과물
     image_placement_guide: Optional[str]   # Image Analysis 워커의 결과물
     polished_content: Optional[str]        # Editor 워커의 결과물
     # ==========================================

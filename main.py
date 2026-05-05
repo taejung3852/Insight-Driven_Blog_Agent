@@ -6,7 +6,7 @@ def run_test(is_first: bool, topic: str):
     그래프 실행 및 동작 검증을 위한 테스트 함수
     """
     print(f"\n{'='*20}")
-    print(f"🚀 {'1편(신규)' if is_first else '2편(연재)'} 포스팅 테스트 시작")
+    print(f"🚀 {'신규' if is_first else '연재'} 포스팅 테스트 시작")
     print(f"{'='*20}")
 
     # 1. 초기 상태 설정 (BlogState 스키마 준수)
@@ -14,6 +14,7 @@ def run_test(is_first: bool, topic: str):
         "is_first_post": is_first,
         "current_topic": topic,
         "tone_and_manner": "전문적이면서 친근한",
+        "learning_insights": "./test_insights.md",  # 파일 경로 전달
         "revision_count": 0,
         "max_revisions": 2, # 최대 수정 횟수 제한
         "messages": []
@@ -37,7 +38,7 @@ def run_test(is_first: bool, topic: str):
 
 if __name__ == "__main__":
     # 테스트 1: 신규 포스팅 (Supervisor -> Intro -> Supervisor -> Critic -> ... -> Final)
-    run_test(is_first=True, topic="LLM 에이전트의 미래")
+    run_test(is_first=False, topic="LLM 에이전트의 미래")
 
     # 테스트 2: 연재 포스팅 (Supervisor -> Injection -> Supervisor -> Continuation -> ... -> Final)
     # run_test(is_first=False, topic="LLM 에이전트의 미래 - 2편")

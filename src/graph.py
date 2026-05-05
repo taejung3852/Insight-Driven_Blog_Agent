@@ -9,14 +9,14 @@ from src.nodes.main_node import (
 )
 from src.nodes.sub_graph_nodes.intro_graph_node import (
     intro_supervisor_agent,
-    intro_content_structure_agent,
-    intro_humanized_draft_agent,
+    intro_outline_agent,
+    intro_draft_agent,
     internal_editor_agent
 )
 from src.nodes.sub_graph_nodes.continuation_graph_node import (
     continuation_supervisor_agent,
-    continuation_content_structure_agent,
-    continuation_humanized_draft_agent,
+    continuation_outline_agent,
+    continuation_draft_agent,
     continuation_internal_editor_agent
 )
 
@@ -27,9 +27,9 @@ intro_workflow = StateGraph(BlogState)
 
 # intro_워크플로우 node 추가
 intro_workflow.add_node("intro_supervisor", intro_supervisor_agent)
-intro_workflow.add_node('content_structure', intro_content_structure_agent)
+intro_workflow.add_node('outline', intro_outline_agent)
 intro_workflow.add_node("image_analysis", image_analysis_agent)
-intro_workflow.add_node("humanized_draft", intro_humanized_draft_agent)
+intro_workflow.add_node("draft", intro_draft_agent)
 intro_workflow.add_node("internal_editor", internal_editor_agent)
 
 def route_intro_graph(state: BlogState):
@@ -43,17 +43,17 @@ intro_workflow.add_edge(START, "intro_supervisor")
 
 intro_workflow.add_conditional_edges("intro_supervisor", route_intro_graph,
                                      {
-                                        'content_structure': 'content_structure',
+                                        'outline': 'outline',
                                         'image_analysis': 'image_analysis',
-                                        "humanized_draft": "humanized_draft",
+                                        "draft": "draft",
                                         "internal_editor": "internal_editor",
                                         END: END
                                      }
                                     )
 
-intro_workflow.add_edge("content_structure", "intro_supervisor")
+intro_workflow.add_edge("outline", "intro_supervisor")
 intro_workflow.add_edge("image_analysis", "intro_supervisor")
-intro_workflow.add_edge("humanized_draft", "intro_supervisor")
+intro_workflow.add_edge("draft", "intro_supervisor")
 intro_workflow.add_edge("internal_editor", "intro_supervisor")
 
 intro_app = intro_workflow.compile()
@@ -65,9 +65,9 @@ continuation_workflow = StateGraph(BlogState)
 
 # continuation_workflow node 추가
 continuation_workflow.add_node("continuation_supervisor", continuation_supervisor_agent)
-continuation_workflow.add_node("content_structure", continuation_content_structure_agent)
+continuation_workflow.add_node("outline", continuation_outline_agent)
 continuation_workflow.add_node("image_analysis", image_analysis_agent) # 공통 사용
-continuation_workflow.add_node("humanized_draft", continuation_humanized_draft_agent)
+continuation_workflow.add_node("draft", continuation_draft_agent)
 continuation_workflow.add_node("internal_editor", continuation_internal_editor_agent)
 
 def route_continuation_graph(state: BlogState):
@@ -81,17 +81,17 @@ continuation_workflow.add_edge(START, "continuation_supervisor")
 
 continuation_workflow.add_conditional_edges('continuation_supervisor', route_continuation_graph,
                                             {
-                                                "content_structure": "content_structure",
+                                                "outline": "outline",
                                                 "image_analysis": "image_analysis",
-                                                "humanized_draft": "humanized_draft",
+                                                "draft": "draft",
                                                 "internal_editor": "internal_editor",
                                                 END:END
                                             }
                                         )
 
-continuation_workflow.add_edge("content_structure", "continuation_supervisor")
+continuation_workflow.add_edge("outline", "continuation_supervisor")
 continuation_workflow.add_edge("image_analysis", "continuation_supervisor")
-continuation_workflow.add_edge("humanized_draft", "continuation_supervisor")
+continuation_workflow.add_edge("draft", "continuation_supervisor")
 continuation_workflow.add_edge("internal_editor", "continuation_supervisor")
 
 continuation_app = continuation_workflow.compile()
