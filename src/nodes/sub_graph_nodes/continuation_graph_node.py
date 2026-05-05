@@ -79,7 +79,15 @@ def continuation_draft_agent(state: BlogState) -> dict:
     tone = state.get('tone_and_manner')
     accumulated_context = state.get('accumulated_context')
     insights = state.get('learning_insights')
+    revision_count = state.get("revision_count", 0)
+    messages = state.get("messages", []) # 크리틱의 피드백이 담긴 곳
     
+    critic_feedback = ""
+    # 수정 횟수가 1 이상이고, 메시지가 존재한다면 (즉, 반려당해서 다시 온 거라면)
+    if revision_count > 0 and messages:
+        # 가장 마지막에 담긴 Critic의 피드백을 꺼내옵니다.
+        critic_feedback = messages[-1].content
+        
     # 연재글 전용 프롬프트: 이전 문체 유지 및 서사 연결
     sys_msg = f"""
     **Role:**
@@ -89,7 +97,9 @@ def continuation_draft_agent(state: BlogState) -> dict:
     주어진 아웃라인과 인사이트를 바탕으로, 기계적인 냄새가 나지 않는 '사람의 본문 초안'을 작성하세요.
 
     **Rules:**
-    - 항상 1인칭 시점("저는", "제가")을 사용하여 본인이 직접 경험한 것처럼 서술하세요.
+    - '이전 연재글 요약'을 참고하여, 앞에서 이미 자세히 설명한 기본 개념을 또다시 길게 설명하지 마세요.
+    - 이전 편의 흐름을 이어받아 서사가 자연스럽게 연결되도록 서론을 부드럽게 시작하세요. (예: "전에 ~에 대해 공부했다. 이번에는...")
+    - 항상 1인칭 시점에서 본인이 직접 경험한 것처럼 서술하세요.
     - 절대 아웃라인의 구조를 마음대로 바꾸거나 누락하지 마세요.
     - 아웃라인의 bullet point 내용에 살을 붙여서 구체적이고 매끄러운 문장으로 확장하세요.
     - 기술적 설명은 독자가 이해하기 쉽게 풀어서 설명하세요.
@@ -98,6 +108,17 @@ def continuation_draft_agent(state: BlogState) -> dict:
     - 마크다운 문법을 사용한 완성된 블로그 본문 전체
     """
     
+    if critic_feedback:
+        sys_msg += f"""
+        \n\n=========================================
+        [🚨 편집장의 이전 반려 사유 및 피드백 반영 지시]
+        이전 작성본이 아래와 같은 사유로 반려되었습니다. 
+        이번 작성 시에는 아래 피드백을 **적절히 반영**해 주세요.
+        
+        {critic_feedback}
+        =========================================
+        """
+        
     human_msg = f"""
     **Context:**
     - 적용할 톤앤매너: {tone}
