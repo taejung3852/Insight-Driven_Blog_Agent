@@ -86,3 +86,39 @@ def retrieve_past_context(current_topic: str, k: int = 1) -> str:
         context_list.append(f"[과거 포스팅 {i+1} - {topic}]\n{doc.page_content}")
         
     return "\n\n".join(context_list)
+
+
+def get_all_topics() -> list[str]:
+    """VectorDB에 저장된 모든 고유 토픽(방 이름) 목록 불러오기"""
+    db = get_vector_db() # 캐싱된 DB 호출
+    try:
+        # ChromaDB에서 모든 데이터의 메타데이터 불러오기
+        collection = db._collection
+        result = collection.get(include=["metadatas"])
+        
+        if not result or not result.get("metadatas"):
+            return []
+            
+        # 메타데이터에서 'topic' 키의 값만 추출하여 중복 제거
+        topics = set()
+        for metadata in result["metadatas"]:
+            if metadata and "topic" in metadata:
+                topics.add(metadata["topic"])
+                
+        return list(topics)
+    except Exception as e:
+        print(f"토픽 목록 로드 중 에러 발생: {e}")
+        return []
+
+def delete_topic(topic: str) -> bool:
+    """VectorDB에서 특정 토픽(방)의 모든 데이터를 삭제합니다."""
+    db = get_vector_db()
+    try:
+        collection = db._collection
+        # metadata의 'topic' 필드가 입력받은 topic과 일치하는 데이터 모두 삭제
+        collection.delete(where={"topic": topic})
+        print(f"🗑️ [System] '{topic}' 관련 데이터가 ChromaDB에서 삭제되었습니다.")
+        return True
+    except Exception as e:
+        print(f"토픽 삭제 중 에러 발생: {e}")
+        return False
