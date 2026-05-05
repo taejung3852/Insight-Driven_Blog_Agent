@@ -17,12 +17,12 @@ def intro_supervisor_agent(state: BlogState) -> dict:
     # State에 값이 채워져 있는지 확인하여 다음 워커를 지정
     if not state.get("outline"):
         next_worker = "outline"
-    elif not state.get("image_placement_guide"):
-        next_worker = "image_analysis"
     elif not state.get("draft_content"):
         next_worker = "draft"
     elif not state.get("polished_content"):
         next_worker = "internal_editor"
+    elif state.get("captured_images") and not state.get("image_information"):
+        next_worker = "image_analysis"
     else:
         print("  -> 서브 그래프 작업 완료! 메인 Supervisor로 복귀합니다.")
         return{

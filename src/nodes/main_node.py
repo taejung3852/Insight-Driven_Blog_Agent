@@ -5,7 +5,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import END
 from src.state import BlogState
 from src.memory import retrieve_past_context, save_blog_context
-from src.utils import load_learning_insights
+from src.utils import load_learning_insights, encode_image_to_base64
 
 load_dotenv()
 
@@ -70,12 +70,80 @@ def context_injection_agent(state: BlogState) -> dict:
 
 
 def image_analysis_agent(state: BlogState) -> dict:
-    print("[Node: Image Analysis] 첨부된 이미지 배치 가이드 생성 중...")
-    images = state.get('captured_images', [])
-    if not images:
-        return {"image_placement_guide": "첨부된 이미지 없음."}
-    return {"image_placement_guide": "이미지 1은 서론 뒤에 배치하세요."} # 임시 더미 응답
+    print("\n[Node: Image Analysis] 첨부된 이미지의 시각적 요소를 분석합니다...")
+    
+    image_paths = state.get('captured_images', [])
+    if not image_paths:
+        return {"image_information": "첨부된 이미지 없음"}
 
+    base64_images = []
+    file_names = []
+    for path in image_paths:
+        encoded = encode_image_to_base64(path)
+        if encoded:
+            base64_images.append(encoded)
+            file_names.append(os.path.basename(path))
+
+    if not base64_images:
+        return {"image_information": "유효한 이미지 파일이 없습니다."}
+
+    print(f"  -> {len(base64_images)}개의 이미지를 분석 중...")
+
+    # 프롬프트: 철저하게 캡셔닝(Captioning)만 지시
+    sys_msg = """당신은 IT 블로그의 시각 데이터 분석가입니다.
+    제공된 이미지들을 보고, 각 이미지의 핵심 내용이 무엇인지 상세히 설명하세요.
+    출력 형식:
+    - [파일명1]: 이미지 요약 및 분석
+    - [파일명2]: 이미지 요약 및 분석"""
+
+    content_parts = [{"type": "text", "text": f"첨부된 이미지 파일명: {file_names}"}]
+    
+    for b64_img in base64_images:
+        content_parts.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"}
+        })
+
+    response = critic_llm.invoke([
+        SystemMessage(content=sys_msg),
+        HumanMessage(content=content_parts)
+    ])
+
+    print("  -> ✅ 이미지 분석(Captioning) 완료.")
+    return {"image_information": response.content}
+
+def image_placement_agent(state: BlogState) -> dict:
+    print("\n[Node: Image Placement] 분석된 이미지를 최종안의 적절한 위치에 삽입합니다...")
+    
+    guide = state.get("image_information")
+    draft = state.get("polished_content")
+
+    # 이미지가 없거나 분석되지 않았다면 패스
+    if not guide or guide == "첨부된 이미지 없음":
+        return {}
+
+    sys_msg = """당신은 편집 디자이너입니다.
+    제공된 '이미지 분석 내역'을 바탕으로, '원본 블로그 글'의 문맥상 가장 어울리는 문단 사이사이에 마커를 삽입하세요.
+    
+    [규칙]
+    1. 마커 형식: <!-- [이미지 삽입: 파일명] -->
+    2. **절대** 원본 글의 문장, 단어, 띄어쓰기를 단 한 글자도 훼손하거나 수정하지 마세요. **오직** 마커만 추가해야 합니다.
+    3. 제목 바로 아래나, 해당 개념을 설명하기 직전/직후에 배치하는 것이 좋습니다.
+    """
+
+    human_msg = f"[이미지 분석 내역]\n{guide}\n\n[원본 블로그 글]\n{draft}"
+
+    # (이 파일 상단에 선언된 텍스트용 LLM 객체를 사용)
+    # 예: response = writer_llm.invoke(...) 
+    
+    response = critic_llm.invoke([
+        SystemMessage(content=sys_msg),
+        HumanMessage(content=human_msg)
+    ])
+
+    print("  -> ✅ 이미지 마커 삽입 완료.")
+    # 마커가 추가된 글로 덮어씌움
+    return {"polished_content": response.content}
 
 def critic_agent(state: BlogState) -> dict:
     print("[Node: Critic] LLM 비평가가 초안을 검토합니다...")
