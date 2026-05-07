@@ -132,3 +132,32 @@ def get_topic_tone(topic: str) -> str:
             if meta and "tone" in meta and meta["tone"]:
                 return meta["tone"]
     return ""
+
+def update_topic_tone(topic: str, new_tone: str):
+    """사용자 피드백을 반영하여 특정 방의 톤앤매너를 영구 업데이트합니다."""
+    db = get_vector_db()
+    collection = db._collection
+    
+    # 기존 데이터의 메타데이터를 확인
+    result = collection.get(where={"topic": topic})
+    if result and result.get("ids"):
+        # 기존 메타데이터 가져와서 tone만 수정
+        metadatas = result["metadatas"]
+        for meta in metadatas:
+            meta["tone"] = new_tone
+        
+        # 수정된 메타데이터로 덮어쓰기
+        collection.update(
+            ids=result["ids"],
+            metadatas=metadatas
+        )
+        print(f"🔄 [System] '{topic}' 방의 톤앤매너가 사용자 피드백으로 업데이트되었습니다.")
+
+def save_user_guideline(topic: str, guideline: str):
+    """사용자가 지적한 '글의 구조/내용' 피드백을 다음 작성을 위해 가이드라인으로 저장합니다."""
+    # Context Injection 단계에서 과거 요약본과 함께 검색될 수 있도록 메타데이터와 함께 저장
+    save_blog_context(
+        topic=topic, 
+        context_text=f"[사용자 피드백/가이드라인 절대 준수]\n{guideline}", 
+        tone=""
+    )

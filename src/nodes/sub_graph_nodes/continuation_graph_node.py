@@ -125,6 +125,7 @@ def continuation_draft_agent(state: BlogState) -> dict:
     - 주제: {topic}
     - 아웃라인: {outline}
     - 핵심 인사이트: {insights}
+    - 이전 연재글 요약(맥락): {accumulated_context}
     """
     
     response = writer_llm.invoke([
