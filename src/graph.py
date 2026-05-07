@@ -4,7 +4,8 @@ from src.nodes.main_node import (
     supervisor_agent,
     context_injection_agent,
     critic_agent,
-    final_agent
+    final_agent,
+    human_review_agent
 )
 
 from src.nodes.sub_graph_nodes.common_node import image_analysis_agent, image_placement_agent
@@ -111,6 +112,7 @@ workflow.add_node('context_injection', context_injection_agent)
 workflow.add_node('intro_graph', intro_app) # 서브 그래프를 노드로 넣는다.
 workflow.add_node('continuation_graph', continuation_app) # 서브 그래프를 노드로 넣는다.
 workflow.add_node('critic', critic_agent)
+workflow.add_node('human_review', human_review_agent)
 workflow.add_node('final', final_agent)
 
 workflow.add_edge(START, 'supervisor')
@@ -124,6 +126,7 @@ workflow.add_conditional_edges('supervisor', route_from_supervisor,
                                 'intro_graph' : 'intro_graph',
                                 'continuation_graph': 'continuation_graph',
                                 'critic' : 'critic',
+                                'human_review': 'human_review',
                                 'final' : 'final'
                                    })
 
@@ -131,6 +134,8 @@ workflow.add_edge('context_injection', 'supervisor')
 workflow.add_edge('intro_graph', 'supervisor')
 workflow.add_edge('continuation_graph', 'supervisor')
 workflow.add_edge('critic', 'supervisor')
+
+workflow.add_edge('human_review', END)
 workflow.add_edge('final', END)
 
 app = workflow.compile()

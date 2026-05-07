@@ -10,7 +10,7 @@ from src.utils import load_learning_insights, encode_image_to_base64
 load_dotenv()
 
 # 작성용: 창의성을 위해 T -> 0.7
-writer_llm = ChatOpenAI(model = 'gpt-5.5', temperature=0.7)
+writer_llm = ChatOpenAI(model = 'gpt-5.4', temperature=0.7)
 # 비평용: 엄격하고 일관성을 위해 T -> 0.1
 critic_llm = ChatOpenAI(model='gpt-5.4-mini', temperature=0.1)
 
@@ -47,11 +47,17 @@ def supervisor_agent(state: BlogState) -> dict:
         
     else:
         if "OK" in verdict:
-            next_step = "final"
+            if not state.get('human_review_complete'):
+                next_step = 'human_review'
+            else:
+                next_step = "final"
         elif "REVISE" in verdict and rev_count < max_rev:
             next_step = "intro_graph" if is_first else "continuation_graph"
         else:
-            next_step = "final"
+            if not state.get('human_review_complete'):
+                next_step = 'human_review'
+            else:
+                next_step = "final"
 
     print(f"  -> 다음 단계: {next_step}")
     return {"next_step": next_step, "learning_insights": processed_insights}
@@ -139,6 +145,9 @@ def critic_agent(state: BlogState) -> dict:
                 "messages": [response]
             }
 
+def human_review_agent(state: BlogState) -> dict:
+    print("\n[Node: Human Review] 에이전트 작업 완료. 사용자의 최종 검토 및 수정을 대기합니다...")
+    return {}
 
 def final_agent(state: BlogState) -> dict:
     print("\n[Node: Final Agent] 최종 결과물 완성. 장기 기억(VectorDB)에 저장합니다...")    
