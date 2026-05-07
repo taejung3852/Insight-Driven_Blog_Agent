@@ -82,7 +82,7 @@ def continuation_draft_agent(state: BlogState) -> dict:
     revision_count = state.get("revision_count", 0)
     messages = state.get("messages", []) # 크리틱의 피드백이 담긴 곳
     
-    critic_feedback = ""
+    critic_feedback = state.get('critic_feedback')
     # 수정 횟수가 1 이상이고, 메시지가 존재한다면 (즉, 반려당해서 다시 온 거라면)
     if revision_count > 0 and messages:
         # 가장 마지막에 담긴 Critic의 피드백을 꺼내옵니다.

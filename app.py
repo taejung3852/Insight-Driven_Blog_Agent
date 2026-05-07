@@ -5,7 +5,7 @@ import re
 import uuid
 from src.graph import app as blog_workflow
 from src.memory import get_all_topics, delete_topic, get_topic_tone, update_topic_tone, save_user_guideline
-from src.utils import analyze_custom_tone
+from src.utils import analyze_custom_tone, synthesize_feedback_and_edits
 
 # 1. 페이지 기본 설정
 st.set_page_config(
@@ -126,7 +126,6 @@ if st.button("🚀 블로그 포스팅 생성 시작!", use_container_width=True
                 f.write(img.getbuffer())
             temp_image_paths.append(temp_path)
 
-    # 새로운 실행을 위한 thread_id 생성
     st.session_state['thread_id'] = str(uuid.uuid4())
     config = {"configurable": {"thread_id": st.session_state['thread_id']}}
 
@@ -144,7 +143,6 @@ if st.button("🚀 블로그 포스팅 생성 시작!", use_container_width=True
     st.subheader("🤖 에이전트 작업 현황")
     
     with st.status("워크플로우 실행 중...", expanded=True) as status:
-        # Checkpointer를 사용하므로 config 전달
         for output in blog_workflow.stream(initial_state, config=config, stream_mode="updates"):
             for node_name, state_update in output.items():
                 st.write(f"✅ **[{node_name}]** 에이전트 작업 완료")
@@ -153,50 +151,49 @@ if st.button("🚀 블로그 포스팅 생성 시작!", use_container_width=True
 # 5. 결과물 시각화 및 HITL(사람 개입) 제어
 if 'thread_id' in st.session_state:
     config = {"configurable": {"thread_id": st.session_state['thread_id']}}
-    
-    # Checkpointer에서 현재 상태 가져오기
     current_snapshot = blog_workflow.get_state(config)
     full_state = current_snapshot.values
     
-    # interrupt_before=["human_review"]에 의해 멈춰있는지 확인
     is_paused = len(current_snapshot.next) > 0 and current_snapshot.next[0] == "human_review"
     
     if is_paused:
         st.markdown("---")
         st.warning("✋ 에디터의 초안 작성이 끝났습니다. 최종본을 확인하고 직접 수정하거나 피드백을 남겨주세요.")
         
-        # 1. 사람이 직접 글을 수정할 수 있는 에디터
         draft_text = full_state.get("polished_content", "")
         edited_text = st.text_area("✍️ 최종본 직접 수정 (Manual Override)", value=draft_text, height=450)
         
-        # 2. 피드백 입력란
         f_col1, f_col2 = st.columns(2)
         with f_col1:
-            feedback_tone = st.text_input("🗣️ 말투 피드백 (다음 포스팅에 반영)", placeholder="예: 좀 더 진지한 말투로...")
+            feedback_tone = st.text_input("🗣️ 말투 피드백", placeholder="예: 이모지를 적절히 섞어줘...")
         with f_col2:
-            feedback_struct = st.text_input("🏗️ 구조 피드백 (다음 포스팅에 반영)", placeholder="예: 서론을 짧게...")
+            feedback_struct = st.text_input("🏗️ 구조 피드백", placeholder="예: 첫 문단은 흥미 유발 위주로...")
         
         if st.button("✅ 최종 승인 및 저장", type="primary", use_container_width=True):
-            # 피드백 DB 반영
-            if feedback_tone: update_topic_tone(full_state['current_topic'], feedback_tone)
-            if feedback_struct: save_user_guideline(full_state['current_topic'], feedback_struct)
+            with st.spinner("최종 수정본과 피드백을 종합 분석 중입니다... 🧠"):
+                # 직접 수정한 내역이나 피드백이 있는 경우 분석 실행
+                if feedback_tone or feedback_struct or (draft_text != edited_text):
+                    synthesized = synthesize_feedback_and_edits(edited_text, feedback_tone, feedback_struct)
+                    
+                    if synthesized.get("tone"): 
+                        update_topic_tone(full_state['current_topic'], synthesized["tone"])
+                    if synthesized.get("structure"): 
+                        save_user_guideline(full_state['current_topic'], synthesized["structure"])
             
-            # Checkpointer 상태 강제 업데이트 (사람의 수정본 주입)
+            # 상태 업데이트 및 수동 수정본 주입
             blog_workflow.update_state(
                 config,
                 {"human_review_complete": True, "final_content": edited_text}
             )
             
-            with st.spinner("최종 저장 중..."):
-                # None을 전달하여 멈춘 지점부터 다시 실행
+            with st.spinner("최종 발행 진행 중..."):
                 for _ in blog_workflow.stream(None, config=config):
                     pass 
             
-            st.success("🎉 최종 발행 및 장기 기억 저장이 완료되었습니다!")
+            st.success("🎉 최종 발행 및 AI 학습이 완료되었습니다!")
             st.rerun()
             
     else: 
-        # 최종 완료 상태 출력
         st.markdown("### 📋 최종 결과물 확인")
         with st.expander("🔍 작업 내역 상세 보기"):
             if "outline" in full_state: st.markdown(f"**[기획자 아웃라인]**\n\n{full_state['outline']}")
@@ -208,8 +205,9 @@ if 'thread_id' in st.session_state:
             st.success("✨ 사람의 최종 승인이 완료된 포스팅입니다.")
             preview_tab, code_tab = st.tabs(["✨ 블로그 미리보기", "📄 마크다운 소스코드"])
             with preview_tab:
+                # 미리보기 이미지 치환
                 display_text = re.sub(r'', r'\n\n> 🖼️ **[여기에 \1 이미지가 배치됩니다]**\n\n', final_text)
                 st.markdown(display_text)
             with code_tab:
-                st.info("아래 코드를 복사해서 블로그 에디터에 붙여넣으세요!")
+                st.info("코드를 복사해서 블로그 에디터에 붙여넣으세요!")
                 st.code(final_text, language="markdown")

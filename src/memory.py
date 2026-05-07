@@ -74,7 +74,11 @@ def retrieve_past_context(current_topic: str, k: int = 1) -> str:
     키워드1, 키워드2, 키워드3
     """
     
-    results = db.similarity_search(query, k=k) 
+    results = db.similarity_search(
+        query,
+        k=k,
+        filter={'topic': current_topic}
+    ) 
     
     if not results:
         return "관련된 이전 포스팅 맥락을 찾지 못했습니다."

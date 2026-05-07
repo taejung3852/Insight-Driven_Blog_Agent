@@ -29,6 +29,7 @@ class BlogState(TypedDict):
     draft_content: Optional[str]            # 초안
     final_content: Optional[str]            # 최종안
     review_verdict: Optional[str]           # OK(통과) or REVISE(불통) 여부
+    critic_feedback: Optional[str]
 
     revision_count: int                     # Critic 거절 횟수 (무한 루프 방지 -> 필수다)
     max_revisions: int                      # 최대 거절 횟수
