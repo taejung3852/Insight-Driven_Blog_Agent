@@ -3,7 +3,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 
 # 작성용: 창의성을 위해 T -> 0.7
-writer_llm = ChatOpenAI(model = 'gpt-5.5', temperature=0.7)
+writer_llm = ChatOpenAI(model = 'gpt-5.4', temperature=0.7)
 # 비평용: 엄격하고 일관성을 위해 T -> 0.1
 critic_llm = ChatOpenAI(model='gpt-5.4-mini', temperature=0.1)
 
@@ -82,7 +82,7 @@ def continuation_draft_agent(state: BlogState) -> dict:
     revision_count = state.get("revision_count", 0)
     messages = state.get("messages", []) # 크리틱의 피드백이 담긴 곳
     
-    critic_feedback = ""
+    critic_feedback = state.get('critic_feedback')
     # 수정 횟수가 1 이상이고, 메시지가 존재한다면 (즉, 반려당해서 다시 온 거라면)
     if revision_count > 0 and messages:
         # 가장 마지막에 담긴 Critic의 피드백을 꺼내옵니다.
@@ -125,6 +125,7 @@ def continuation_draft_agent(state: BlogState) -> dict:
     - 주제: {topic}
     - 아웃라인: {outline}
     - 핵심 인사이트: {insights}
+    - 이전 연재글 요약(맥락): {accumulated_context}
     """
     
     response = writer_llm.invoke([

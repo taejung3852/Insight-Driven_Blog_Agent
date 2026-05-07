@@ -10,7 +10,7 @@ from src.utils import load_learning_insights, encode_image_to_base64
 load_dotenv()
 
 # 작성용: 창의성을 위해 T -> 0.7
-writer_llm = ChatOpenAI(model = 'gpt-5.5', temperature=0.7)
+writer_llm = ChatOpenAI(model = 'gpt-5.4', temperature=0.7)
 # 비평용: 엄격하고 일관성을 위해 T -> 0.1
 critic_llm = ChatOpenAI(model='gpt-5.4-mini', temperature=0.1)
 
@@ -47,11 +47,17 @@ def supervisor_agent(state: BlogState) -> dict:
         
     else:
         if "OK" in verdict:
-            next_step = "final"
+            if not state.get('human_review_complete'):
+                next_step = 'human_review'
+            else:
+                next_step = "final"
         elif "REVISE" in verdict and rev_count < max_rev:
             next_step = "intro_graph" if is_first else "continuation_graph"
         else:
-            next_step = "final"
+            if not state.get('human_review_complete'):
+                next_step = 'human_review'
+            else:
+                next_step = "final"
 
     print(f"  -> 다음 단계: {next_step}")
     return {"next_step": next_step, "learning_insights": processed_insights}
@@ -78,13 +84,14 @@ def critic_agent(state: BlogState) -> dict:
 
     sys_msg = f"""
     **Role:**
-    당신은 품질을 타협하지 않는 엄격한 콘텐츠 편집장(Editor-in-Chief)입니다.
+    당신은 블로그 콘텐츠의 퀄리티를 관리하는 객관적이고 합리적인 편집장(Editor-in-Chief)입니다.
 
     **Objective:**
-    최종 블로그 초안이 주어진 톤앤매너를 지켰는지, 논리적 흐름이 완벽한지 평가하고 통과 여부를 결정하세요.
+    최종 블로그 초안이 주어진 톤앤매너를 크게 훼손하지 않고, 핵심 내용이 잘 전달되는지 평가하여 통과 여부를 결정하세요.
 
     **Rules:**
-    - 항상 독자의 관점에서 글이 읽기 편한지, 전문성은 담겨있는지 냉정하게 평가하세요.
+    - 독자의 관점에서 글이 자연스럽게 읽히는지, 요구된 톤앤매너의 '큰 틀'을 잘 지켰는지 평가하세요.
+    - [중요] 사소한 단어 선택이나 개인적인 취향 차이로 반려하지 마세요. 치명적인 논리적 비약이나 톤앤매너의 완전한 붕괴가 없다면 가급적 통과(OK)시키세요.
     - 절대 글을 직접 수정하거나 다시 쓰지 마세요.
     - 피드백은 3문장 이내로 핵심만 간결하게 작성하세요.
     - 평가 결과의 맨 마지막 줄에는 반드시 아래의 '출력 형식' 중 하나를 단독으로 출력하세요.
@@ -94,7 +101,7 @@ def critic_agent(state: BlogState) -> dict:
 
     VERDICT: OK (통과 시) 
     또는 
-    VERDICT: REVISE (수정 필요 시)
+    VERDICT: REVISE (치명적인 문제가 있어 수정 필요 시)
     """
 
     human_msg = f"""
@@ -116,6 +123,7 @@ def critic_agent(state: BlogState) -> dict:
         return {
             "final_content": polished, 
             "review_verdict": "OK",
+            'critic_feedback': None,
             "messages": [response]
         }
     else:
@@ -126,6 +134,7 @@ def critic_agent(state: BlogState) -> dict:
                 "final_content": polished, # 날리지 않고 최종안으로 승격!
                 "revision_count": current_count + 1,
                 "review_verdict": "REVISE", 
+                'critic_feedback': feedback,
                 "messages": [response]
             }
         else:
@@ -134,11 +143,15 @@ def critic_agent(state: BlogState) -> dict:
                 "revision_count": current_count + 1, 
                 "review_verdict": "REVISE",
                 'draft_content': None,
+                'critic_feedback': feedback,
                 'image_information' : None,
                 "polished_content": None, 
                 "messages": [response]
             }
 
+def human_review_agent(state: BlogState) -> dict:
+    print("\n[Node: Human Review] 에이전트 작업 완료. 사용자의 최종 검토 및 수정을 대기합니다...")
+    return {}
 
 def final_agent(state: BlogState) -> dict:
     print("\n[Node: Final Agent] 최종 결과물 완성. 장기 기억(VectorDB)에 저장합니다...")    

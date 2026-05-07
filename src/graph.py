@@ -1,10 +1,12 @@
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 from src.state import BlogState
 from src.nodes.main_node import (
     supervisor_agent,
     context_injection_agent,
     critic_agent,
-    final_agent
+    final_agent,
+    human_review_agent
 )
 
 from src.nodes.sub_graph_nodes.common_node import image_analysis_agent, image_placement_agent
@@ -111,6 +113,7 @@ workflow.add_node('context_injection', context_injection_agent)
 workflow.add_node('intro_graph', intro_app) # 서브 그래프를 노드로 넣는다.
 workflow.add_node('continuation_graph', continuation_app) # 서브 그래프를 노드로 넣는다.
 workflow.add_node('critic', critic_agent)
+workflow.add_node('human_review', human_review_agent)
 workflow.add_node('final', final_agent)
 
 workflow.add_edge(START, 'supervisor')
@@ -124,6 +127,7 @@ workflow.add_conditional_edges('supervisor', route_from_supervisor,
                                 'intro_graph' : 'intro_graph',
                                 'continuation_graph': 'continuation_graph',
                                 'critic' : 'critic',
+                                'human_review': 'human_review',
                                 'final' : 'final'
                                    })
 
@@ -131,9 +135,16 @@ workflow.add_edge('context_injection', 'supervisor')
 workflow.add_edge('intro_graph', 'supervisor')
 workflow.add_edge('continuation_graph', 'supervisor')
 workflow.add_edge('critic', 'supervisor')
+
+workflow.add_edge('human_review', 'supervisor')
 workflow.add_edge('final', END)
 
-app = workflow.compile()
+memory = MemorySaver()
+
+app = workflow.compile(
+    checkpointer= memory,
+    interrupt_before= ['human_review']
+)
 
 # # 컴파일된 app 객체 사용
 # https://mermaid.live 이 사이트에 출력된 결롸를 넣으면 시각화 그래프를 얻을 수 잇다.

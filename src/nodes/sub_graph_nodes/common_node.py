@@ -6,7 +6,7 @@ from langchain_openai import ChatOpenAI
 import os
 
 # 작성용: 창의성을 위해 T -> 0.7
-writer_llm = ChatOpenAI(model = 'gpt-5.5', temperature=0.7)
+writer_llm = ChatOpenAI(model = 'gpt-5.4', temperature=0.7)
 # 비평용: 엄격하고 일관성을 위해 T -> 0.1
 critic_llm = ChatOpenAI(model='gpt-5.4-mini', temperature=0.1)
 
