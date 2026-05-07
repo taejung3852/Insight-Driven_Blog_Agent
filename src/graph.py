@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 from src.state import BlogState
 from src.nodes.main_node import (
     supervisor_agent,
@@ -135,10 +136,15 @@ workflow.add_edge('intro_graph', 'supervisor')
 workflow.add_edge('continuation_graph', 'supervisor')
 workflow.add_edge('critic', 'supervisor')
 
-workflow.add_edge('human_review', END)
+workflow.add_edge('human_review', 'supervisor')
 workflow.add_edge('final', END)
 
-app = workflow.compile()
+memory = MemorySaver()
+
+app = workflow.compile(
+    checkpointer= memory,
+    interrupt_before= ['human_review']
+)
 
 # # 컴파일된 app 객체 사용
 # https://mermaid.live 이 사이트에 출력된 결롸를 넣으면 시각화 그래프를 얻을 수 잇다.
