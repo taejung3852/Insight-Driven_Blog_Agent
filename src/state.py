@@ -2,45 +2,47 @@
 from typing import Annotated, Optional, Literal, TypedDict
 from langgraph.graph import add_messages
 
-class BlogState(TypedDict):
-    messages: Annotated[list, add_messages] # LLM 답변 저장할 키
+class TechDocState(TypedDict):
+    messages: Annotated[list, add_messages] # LLM 답변 저장할 필드
 
     # 필수 초기 설정값
-    is_first_post: bool                     # 분기용, 첫 포스팅인지 여부
-    current_topic: str                      # 작성할 내용의 주제
-    tone_and_manner: str                    # 블로그 말투
-    learning_insights: Optional[str]        # 사용자의 깨달음 (입력 데이터)
+    doc_type: Literal['feature_spec', 'release_note', 'api_doc'] # 명확한 문서 타입 지정
+    system_name: str                        # 문서화할 시스템 이름
+    doc_style_guide: str                    # 사내 기술 문서 작성 가이드라인
+    technical_source: Optional[str]         # 개발자 메모, 소스코드, 회의록 등 입력 데이터
+    is_update_request: bool                 # 기존 분서 업데이트 여부
 
     # 상태 업데이투 과정에서 채워지는 필드들 (반드시 None으로 기본값 지정)
-    accumulated_context: str                # 이전 포스팅들의 요약본(맥락)
+    previous_doc_context: str               # 버전 업데이트 시 참고할 이전 문서의 맥락/용어집
     next_step: Optional[Literal[            # supervisor가 판단한 경로 선택 목록
-        'intro_graph', 
-        'continuation_graph', 
-        'final', 
-        'critic'
+        'new_doc_graph', 
+        'update_doc_graph', 
+        'qa_critic'                         # 품질 보증 단계
+        'human_approval', 
+        'final_publish'
         ]]
     sub_next_step: Optional[Literal[        # 하위 그래프들의 경로 선택 목록
-        'outline',
-        'image_analysis',
-        'draft',
-        'internal_editor',
+        'structure_planning',               # 목차 기획
+        'diagram_analysis',                 # 아키텍처 다이어그램 분석
+        'technical_drafting',               # 기술 초안 작성
+        'compliance_editor',                # 사내 가이드라인 준수 여부 교정
         'finish'
         ]]    
-    draft_content: Optional[str]            # 초안
-    final_content: Optional[str]            # 최종안
-    review_verdict: Optional[str]           # OK(통과) or REVISE(불통) 여부
-    critic_feedback: Optional[str]
 
-    revision_count: int                     # Critic 거절 횟수 (무한 루프 방지 -> 필수다)
+    # 문서 상태 (Outputs & QA)
+    doc_draft: Optional[str]                # 기술 문서 초안
+    tech_reviewed_content: Optional[str]    # 기술 교정 완성본
+    final_doc: Optional[str]                # 최종 승인된 기술 문서
+
+    # 검증 및 피드백
+    review_verdict: Optional[Literal['PASS', 'REVISE', 'REJECT']]
+    qa_feedback: Optional[str]              # 규격 위반 사항에 대한 구체적 리포트
+    revision_count: int                     
     max_revisions: int                      # 최대 거절 횟수
 
-    
-    captured_images: Optional[list[str]]    # 이미지 데이터 (없으면 빈 리스트)
-    
-    outline: Optional[str]                  # Structure 워커의 결과물
-    image_information: Optional[str]        # Image Analysis 워커의 결과물
-    polished_content: Optional[str]         # Editor 워커의 결과물
+    # HITL
+    human_review_complete: Optional[bool]    # 사용자 검토 완료 여부
+    human_feedback_technical: Optional[str]  # 기술적 팩트 수정 지시
+    human_feedback_compliance: Optional[str] # 포맷/구조 수정 지시
 
-    human_review_complete: Optional[bool]   # 사용자 검토 완료 여부
-    human_feedback_tone: Optional[str]      # 사용자가 지적한 말투 피드백
-    human_feedback_structure: Optional[str] # 사용자가 지적한 글 구조/내용 피드백
+    captured_diagrams: Optional[list[str]]
