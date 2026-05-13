@@ -1,74 +1,97 @@
-# Insight-Driven Blog Agent
+# AutoDoc-MAS
 
 ![Main Workflow Diagram](./blog_agent_workflow.png)
+<!-- 이미지 첨부: 프로젝트 로고 또는 시스템의 전체 목적을 보여주는 심플한 아키텍처 개요 이미지 -->
+AutoDoc-MAS는 개발 과정에서 발생하는 비정형 기술 데이터(코드 스니펫, 회의록, 아키텍처 다이어그램 등)를 규격화된 기업용 기술 문서로 변환하고 관리하는 LangGraph 기반 멀티 에이전트 시스템(MAS)입니다.
 
-**Insight-Driven Blog Agent**는 사용자의 짧은 인사이트와 캡처 이미지를 바탕으로, 마치 전문가가 쓴 듯한 고품질의 블로그 포스팅을 자동 생성해 주는 **LangGraph 기반 멀티 에이전트 시스템**입니다. 
-
-단순한 텍스트 생성을 넘어, **과거 연재글의 맥락을 기억**하고 **나만의 말투를 모방**하며, 깐깐한 AI 편집장의 **피드백 루프**를 통해 스스로 글을 수정하는 진정한 의미의 자율형 AI 작가입니다.
-
+단일 LLM 호출에 의존하지 않고, 이전 문서의 맥락 인지와 사내 가이드라인 준수 여부를 다중 에이전트 간의 상호 검증(Reflection) 루프를 통해 제어함으로써 기술 문서의 논리적 정합성을 확보합니다.
+<!--[이미지/GIF 첨부: Streamlit UI에서 원시 데이터가 규격화된 문서로 자동 변환되는 과정을 담은 짧은 시연 화면]-->
 ---
-## 서브 그래프 상세 구조 (Sub-Graph Architecture)
 
-본 시스템은 메인 Supervisor 하에 특수 목적을 수행하는 두 가지 서브 그래프를 독립적으로 운용하여 작업의 정밀도를 높였습니다.
+## 프로젝트 배경 및 동기
 
-### 1. Intro Post Graph (첫 포스팅 전용)
-새로운 토픽의 시작을 알리는 1편 작성을 담당합니다. 아웃라인 기획부터 초안 작성, 윤문, 그리고 비전 에이전트를 통한 이미지 배치까지의 전 과정을 자동화합니다.
-- **주요 노드:** `intro_outline` -> `intro_draft` -> `internal_editor` -> `common_image_agent`![Intro Workflow Diagram](./intro_workflow.png)
+**문제 정의**
 
+소프트웨어 아키텍처와 코드는 지속적으로 변경되지만, 이를 반영한 기술 문서화 작업은 유지보수 비용 문제로 인해 동기화가 지연되는 경우가 많습니다. 기존의 단일 LLM이나 단순 검색 증강 생성(RAG) 기법을 도입할 경우, 시스템 규모가 커질수록 기존 문서와의 맥락 단절(Context Loss)이나 기술적 환각(Hallucination) 현상이 발생하여 실무 적용에 한계가 존재합니다.
 
-### 2. Continuation Post Graph (연재물 전용)
-이전 글들의 맥락(`accumulated_context`)을 유지하며 시리즈의 다음 편을 작성합니다. 기존 서사를 파괴하지 않으면서 새로운 인사이트를 자연스럽게 결합하는 데 최적화되어 있습니다.
-- **주요 노드:** `continuation_outline` -> `continuation_draft` -> `internal_editor` -> `common_image_agent`![Continuation Workflow Diagram](./continuation_workflow.png)
+**해결 방안**
 
+본 프로젝트는 문서화 워크플로우를 기획(Planner), 작성(Executor), 검증(Critic) 역할로 분리한 멀티 에이전트 아키텍처를 채택했습니다. 시스템 내부에 독립적인 피드백 루프를 구축하여 사내 기술 표준을 강제하고, 사람의 개입을 최소화한 상태에서 신뢰도 높은 기술 문서를 자동 갱신할 수 있는 파이프라인을 설계했습니다.
+<!--[이미지 첨부: 파편화된 메모/코드 -> AutoDoc-MAS -> 정돈된 기술 문서로 이어지는 데이터 흐름 인포그래픽]-->
 
 ---
 
-## 핵심 기능
+## 시스템 아키텍처
 
-### 1. 멀티 에이전트 오케스트레이션 (LangGraph)
-단일 모델에 의존하지 않고, 역할이 세분화된 여러 에이전트가 협업합니다.
-- **Supervisor Agent:** 전체 워크플로우를 통제하고 라우팅합니다.
-- **Planner / Outline Agent:** 글의 뼈대를 기획합니다.
-- **Writer / Editor Agent:** 초안을 작성하고 문맥을 매끄럽게 윤문합니다.
-- **Vision Agent:** 첨부된 다이어그램 및 스크린샷을 분석하여 마크다운 내 최적의 위치에 삽입합니다.
+메인 Supervisor를 중심으로 한 계층형 멀티 에이전트 구조를 채택하여 복잡한 문서화 공정을 자동화합니다.
+<!--[이미지 첨부: src/graph.py에 정의된 전체 노드 라우팅 시퀀스 다이어그램]-->
 
-### 2. 장기 기억 기반 연재글 작성 (VectorDB-RAG)
-ChromaDB를 연동하여 **토픽 방(Topic Room)** 개념을 구현했습니다.
-- **맥락 유지:** 이전 시리즈에서 다룬 내용을 VectorDB에서 불러와, 중복된 개념 설명을 피하고 자연스럽게 서사를 이어갑니다.
-- **메타데이터 저장:** 방별로 지정된 톤앤매너를 DB에 영구 고정하여 일관된 시리즈물을 작성할 수 있습니다.
+### 1. New Doc Graph (신규 문서 파이프라인)
+새로운 시스템이나 마이크로서비스에 대한 최초 기술 문서 작성을 담당합니다.
+- **Planner (`structure_planning`):** 입력된 기술 소스를 분석하여 문서의 아웃라인 구조를 설계합니다.
+- **Executor (`technical_drafting`, `diagram_analysis`):** 아웃라인에 기반하여 초안을 작성하고, 비전 데이터를 분석해 최적의 위치에 이미지를 배치합니다.
+- **Critic (`compliance_editor`):** 사내 표준 규격 준수 여부와 기술적 오류를 검토 및 윤문합니다.
+<!--[이미지 첨부: 신규 문서 전용 서브 그래프 다이어그램 (Planner-Executor-Critic 구조)]-->
+![Intro Workflow Diagram](./intro_workflow.png)
 
-### 3. 사용자 정의 톤앤매너 추출기
-평소 본인이 작성하던 블로그 글을 입력하면, 빠르고 저렴한 모델(`gpt-5.4-mini`)이 문체를 분석하여 **프롬프트 형태의 행동 지침(Tone & Manner)**으로 추출하고 에이전트에 주입합니다.
-
-### 4. 리플렉션 및 자가 수정 (Reflection & Self-Correction)
-- **Critic Agent:** 엄격한 편집장 역할을 수행하여, 글이 톤앤매너를 지켰는지, 논리적 비약은 없는지 평가합니다.
-- **Feedback Loop:** 통과하지 못할 경우(REVISE), 피드백 내용을 Writer 에이전트에게 전달하여 초안부터 다시 작성(Clean State)하게 만드는 강력한 품질 보증 로직을 탑재했습니다.
-
-### 5. 직관적인 Web UI (Streamlit)
-SPA(Single Page Application) 수준의 매끄러운 사용자 경험을 제공합니다.
-- 실시간 에이전트 작업 상태 모니터링
-- 방 생성 및 삭제(DB 동기화), 동적 UI 전환
-- 탭 분리를 통한 최종 마크다운 소스코드 원클릭 복사
+### 2. Continuation Doc Graph (업데이트 문서 파이프라인)
+기존 문서의 맥락을 유지하며 시스템 변경 사항을 반영하는 파이프라인입니다.
+- **Context Loader (`context_injection`):** VectorDB에서 이전 문서의 핵심 용어와 결론을 로드하여 맥락을 주입합니다.
+- **Planner (`update_structure_planning`):** 주입된 맥락과 신규 변경 사항을 결합하여 업데이트된 아웃라인을 기획합니다.
+- **Executor (`update_technical_drafting`, `update_diagram_analysis`):** 이전 서사를 유지하며 변경된 기술 내용을 본문에 반영합니다.
+- **Critic (`update_qa_critic`):** 기존 문서와의 용어 통일성 및 업데이트 내용의 정합성을 최종 검증합니다.
+<!--[이미지 첨부: 기존 문서 맥락이 신규 데이터와 결합되는 RAG 과정이 포함된 서브 그래프 다이어그램]-->
+![Continuation Workflow Diagram](./continuation_workflow.png)
 
 ---
 
-## 기술 스택 (Tech Stack)
+## 핵심 기술 및 엔지니어링 포인트
+
+### 1. LangGraph 기반 오케스트레이션
+순차적인 체인 구조의 한계를 넘어, StateGraph 위에서 에이전트들이 협업하는 순환형 구조를 설계했습니다.
+- **Supervisor Agent:** 전체 워크플로우의 상태(TechDocState)를 평가하고 조건부 엣지(Conditional Edges)를 통해 최적의 노드로 동적 라우팅을 수행합니다.
+
+### 2. Long-term Memory 관리 전략
+ChromaDB를 연동하여 프로젝트 단위의 **문서 네임스페이스**를 구축했습니다.
+- **맥락 인지 (Context-Aware):** 과거 버전에 기록된 기술 개념과 결론을 VectorDB에서 검색 및 주입하여, 중복 서술을 방지하고 시스템 히스토리를 유지합니다.
+- **메타데이터 압축:** 문서 발행 시 전체 텍스트가 아닌 핵심 키워드와 가이드라인 준수 사항만 메타데이터로 요약 저장하여 검색 효율을 높입니다.
+<!--[이미지 첨부: 문서 발행 시 핵심 메타데이터가 VectorDB에 저장되고, 다음 업데이트 시 검색 및 주입(Injection)되는 과정]-->
+
+### 3. Reflection
+- Critic 에이전트의 검증을 통과하지 못할 경우(REVISE), 피드백 내용을 Executor 에이전트에게 반환합니다. 무한 루프 방지를 위해 최대 수정 횟수 제한(max_revisions)을 두어 파이프라인의 안정성을 보장합니다.
+<!--[이미지 첨부: QA Critic 에이전트가 사내 가이드라인 위반을 발견하고 REVISE 판정을 내리는 터미널 로그 또는 UI 캡처 화면]-->
+
+### 4. Human-in-the-loop (HITL) 제어
+- 최종 문서 발행 전, 시스템이 대기 상태(Interrupt)로 전환되어 사용자가 직접 검토하고 수정안을 상태에 반영할 수 있는 인터페이스를 제공합니다.
+
+---
+
+<!-- ## 정량적 성과 지표
+> ⚠️ **[TODO / 작성 예정]** 시스템 구축 및 검증 완료 후 테스트 데이터셋을 기반으로 수치를 업데이트할 예정입니다. (나중에 아래 내용을 복사하여 본문에 반영하세요.)
+[이미지 첨부: 단일 모델 사용 대비 가이드라인 준수율 상승, 처리 시간 단축 등을 비교한 막대 그래프]
+```text
+* 환각 및 규격 위반 감소: Critic 에이전트를 통한 자가 수정(Self-Correction) 루프 도입 전후 대비, 가이드라인 위반 및 논리적 오류 발생률 O% 감소.
+* 토큰 소모량 최적화: 메타데이터 추출 및 VectorDB 기반 컨텍스트 주입(Context Injection) 적용으로 전체 파이프라인의 토큰 사용량 O% 절감.
+* 처리 시간 단축: 기술 문서 1건당 아웃라인 설계, 초안 작성, 최종 윤문에 소요되는 End-to-End 처리 시간 O% 단축.
+```
+-->
+---
+
+## 기술 스택
 
 - **Framework:** LangChain, LangGraph
-- **Frontend:** Streamlit
-- **Database:** ChromaDB (Vector Store)
-- **LLM:** OpenAI (`gpt-5.4-mini`, `gpt-5.5`)
-- **Embeddings**: OpenAI (`text-embedding-3-small`)
+- **Database:** ChromaDB (Vector Store), SQLite (Log Management)
+- **LLM:** Google Gemini 3.1 Series
+- **Frontend / Backend:** Streamlit / FastAPI (Planned)
 - **Language:** Python 3.10+
 
 ---
 
-## 프로젝트 구조 (Project Structure)
+## 프로젝트 구조
 
 ```text
-blog_agent_project/
+autodoc_mas_project/
 ├── app.py                           # Streamlit 웹 UI 및 메인 실행 파일
-├── blog_agent_workflow.png          # 에이전트 워크플로우 다이어그램
 ├── requirements.txt                 # 패키지 의존성
 ├── docs/                            # 프로젝트 설계 가이드 및 마일스톤 문서
 │   ├── 01_project_milestone.md
@@ -77,12 +100,12 @@ blog_agent_project/
 │   └── 04_prompt_guide.md
 └── src/
     ├── graph.py                     # LangGraph StateGraph 및 워크플로우 정의
-    ├── state.py                     # 공유 상태(State) 스키마 정의 (TypedDict)
+    ├── state.py                     # 공유 상태(TechDocState) 스키마 정의
     ├── memory.py                    # ChromaDB 초기화 및 컨텍스트 관리 로직
-    ├── utils.py                     # 유틸리티 (톤앤매너 분석기 등)
+    ├── utils.py                     # 유틸리티 기능 (이미지 인코딩 등)
     └── nodes/                       # 에이전트 노드 구현부
         ├── main_node.py             # Supervisor, Critic, Final Agent
-        └── sub_graph_nodes/         # 서브 그래프 전용 노드
-            ├── intro_graph_node.py        # 1편 전용 파이프라인
-            ├── continuation_graph_node.py # 연재글 전용 파이프라인
-            └── common_node.py             # 공통 기능 (이미지 비전 분석 및 배치)
+        └── sub_graph_nodes/         
+            ├── intro_graph_node.py        # 신규 문서 전용 파이프라인
+            ├── continuation_graph_node.py # 업데이트 문서 전용 파이프라인
+            └── common_node.py             # 공통 기능 (다이어그램 분석 등)
