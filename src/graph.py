@@ -1,152 +1,157 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
-from src.state import BlogState
+from src.state import TechDocState
+
+# TODO: 노드 파일들의 함수/파일 명칭도 아래 import 명칭에 맞춰 추후 업데이트가 필요
 from src.nodes.main_node import (
     supervisor_agent,
     context_injection_agent,
-    critic_agent,
-    final_agent,
-    human_review_agent
+    qa_critic_agent,
+    final_publish_agent,
+    human_approval_agent
 )
 
-from src.nodes.sub_graph_nodes.common_node import image_analysis_agent, image_placement_agent
-from src.nodes.sub_graph_nodes.intro_graph_node import (
-    intro_supervisor_agent,
-    intro_outline_agent,
-    intro_draft_agent,
-    internal_editor_agent
+from src.nodes.sub_graph_nodes.common_node import diagram_analysis_agent, image_placement_agent
+from src.nodes.sub_graph_nodes.new_doc_graph_node import (
+    new_doc_supervisor_agent,
+    structure_planning_agent,
+    technical_drafting_agent,
+    compliance_editor_agent
 )
-from src.nodes.sub_graph_nodes.continuation_graph_node import (
-    continuation_supervisor_agent,
-    continuation_outline_agent,
-    continuation_draft_agent,
-    continuation_internal_editor_agent
+from src.nodes.sub_graph_nodes.update_doc_graph_node import (
+    update_doc_supervisor_agent,
+    update_structure_planning_agent,
+    update_technical_drafting_agent,
+    update_compliance_editor_agent
 )
 
 
 # ==============================================
-# 첫 포스팅을 처리할 Sub-graph
-intro_workflow = StateGraph(BlogState)
+# 1. 신규 기술 문서를 처리할 Sub-graph (New Doc Graph)
+new_doc_workflow = StateGraph(TechDocState)
 
 # intro_워크플로우 node 추가
-intro_workflow.add_node("intro_supervisor", intro_supervisor_agent)
-intro_workflow.add_node('outline', intro_outline_agent)
-intro_workflow.add_node("image_analysis", image_analysis_agent)
-intro_workflow.add_node("draft", intro_draft_agent)
-intro_workflow.add_node("internal_editor", internal_editor_agent)
-intro_workflow.add_node('image_placement', image_placement_agent)
+new_doc_workflow.add_node("new_doc_supervisor", new_doc_supervisor_agent)
+new_doc_workflow.add_node("structure_planning", structure_planning_agent)
+new_doc_workflow.add_node("technical_drafting", technical_drafting_agent)
+new_doc_workflow.add_node("compliance_editor", compliance_editor_agent)
+new_doc_workflow.add_node("diagram_analysis", diagram_analysis_agent)
+new_doc_workflow.add_node("image_placement", image_placement_agent) # 다이어그램 분석 직후 실행되는 공통 노드
 
-def route_intro_graph(state: BlogState):
+def route_new_doc_graph(state: TechDocState):
     step = state.get('sub_next_step')
-    if step == 'finish':
-        return END
     return step
 
-# intro_워크플로우 순서
-intro_workflow.add_edge(START, "intro_supervisor")
+# new_doc 워크플로우 순서
+new_doc_workflow.add_edge(START, "new_doc_supervisor")
 
-intro_workflow.add_conditional_edges("intro_supervisor", route_intro_graph,
+new_doc_workflow.add_conditional_edges("new_doc_supervisor", route_new_doc_graph,
                                      {
-                                        'outline': 'outline',
-                                        'image_analysis': 'image_analysis',
-                                        "draft": "draft",
-                                        "internal_editor": "internal_editor",
-                                        END: END
+                                        'structure_planning': 'structure_planning',
+                                        'technical_drafting': 'technical_drafting',
+                                        "diagram_analysis": "diagram_analysis",
+                                        "compliance_editor": "compliance_editor",
+                                        'finish': END
                                      }
                                     )
 
-intro_workflow.add_edge("outline", "intro_supervisor")
-intro_workflow.add_edge("image_analysis", "image_placement") # 분석 끝나면 삽입으로
-intro_workflow.add_edge("image_placement", "intro_supervisor")
-intro_workflow.add_edge("draft", "intro_supervisor")
-intro_workflow.add_edge("internal_editor", "intro_supervisor")
+new_doc_workflow.add_edge("diagram_analysis", "image_placement") # 분석 끝나면 삽입으로
 
-intro_app = intro_workflow.compile()
+new_doc_workflow.add_edge("structure_planning", "new_doc_supervisor")
+new_doc_workflow.add_edge("image_placement", "new_doc_supervisor")
+new_doc_workflow.add_edge("technical_drafting", "new_doc_supervisor")
+new_doc_workflow.add_edge("compliance_editor", "new_doc_supervisor")
+
+new_doc_app = new_doc_workflow.compile()
 # ==============================================
 
+
 # ==============================================
-# 연재 중인 블로그 포스팅을 처리할 Sub-graph
-continuation_workflow = StateGraph(BlogState)
+# 2. 업데이트 기술 문서를 처리할 Sub-graph (Update Doc Graph)
 
-# continuation_workflow node 추가
-continuation_workflow.add_node("continuation_supervisor", continuation_supervisor_agent)
-continuation_workflow.add_node("outline", continuation_outline_agent)
-continuation_workflow.add_node("image_analysis", image_analysis_agent) # 공통 사용
-continuation_workflow.add_node("draft", continuation_draft_agent)
-continuation_workflow.add_node("internal_editor", continuation_internal_editor_agent)
-continuation_workflow.add_node('image_placement', image_placement_agent)
+update_doc_workflow = StateGraph(TechDocState)
+
+# update_doc_workflow node 추가
+update_doc_workflow.add_node("update_doc_supervisor", update_doc_supervisor_agent)
+update_doc_workflow.add_node("structure_planning", update_structure_planning_agent)
+update_doc_workflow.add_node("diagram_analysis", diagram_analysis_agent)
+update_doc_workflow.add_node("technical_drafting", update_technical_drafting_agent)
+update_doc_workflow.add_node("compliance_editor", update_compliance_editor_agent)
+update_doc_workflow.add_node("image_placement", image_placement_agent)
 
 
-def route_continuation_graph(state: BlogState):
+def route_update_doc_graph(state: TechDocState):
     step = state.get('sub_next_step')
-    if step == 'finish':
-        return END # 사실상 안쓰임
     return step
 
-# continuation_workflow 순서
-continuation_workflow.add_edge(START, "continuation_supervisor")
+# update_doc_workflow 순서
+update_doc_workflow.add_edge(START, "update_doc_supervisor")
 
-continuation_workflow.add_conditional_edges('continuation_supervisor', route_continuation_graph,
+update_doc_workflow.add_conditional_edges('update_doc_supervisor', route_update_doc_graph,
                                             {
-                                                "outline": "outline",
-                                                "image_analysis": "image_analysis",
-                                                "draft": "draft",
-                                                "internal_editor": "internal_editor",
-                                                END:END
+                                                "structure_planning": "structure_planning",
+                                                "diagram_analysis": "diagram_analysis",
+                                                "technical_drafting": "technical_drafting",
+                                                "compliance_editor": "compliance_editor",
+                                                'finish':END
                                             }
                                         )
 
-continuation_workflow.add_edge("outline", "continuation_supervisor")
-continuation_workflow.add_edge("image_analysis", "image_placement")
-continuation_workflow.add_edge("image_placement", "continuation_supervisor")
-continuation_workflow.add_edge("draft", "continuation_supervisor")
-continuation_workflow.add_edge("internal_editor", "continuation_supervisor")
+update_doc_workflow.add_edge("diagram_analysis", "image_placement")
 
-continuation_app = continuation_workflow.compile()
+update_doc_workflow.add_edge("structure_planning", "update_doc_supervisor")
+update_doc_workflow.add_edge("image_placement", "update_doc_supervisor")
+update_doc_workflow.add_edge("technical_drafting", "update_doc_supervisor")
+update_doc_workflow.add_edge("compliance_editor", "update_doc_supervisor")
+
+update_doc_app = update_doc_workflow.compile()
 # ==============================================
 
-
-workflow = StateGraph(BlogState)
+# ==============================================
+# 3. Main 워크플로우 (전체 오케스트레이션)
+workflow = StateGraph(TechDocState)
 
 workflow.add_node('supervisor', supervisor_agent)
 workflow.add_node('context_injection', context_injection_agent)
-workflow.add_node('intro_graph', intro_app) # 서브 그래프를 노드로 넣는다.
-workflow.add_node('continuation_graph', continuation_app) # 서브 그래프를 노드로 넣는다.
-workflow.add_node('critic', critic_agent)
-workflow.add_node('human_review', human_review_agent)
-workflow.add_node('final', final_agent)
+workflow.add_node('new_doc_graph', new_doc_app) # 서브 그래프를 노드로 넣는다.
+workflow.add_node('update_doc_graph', update_doc_app) # 서브 그래프를 노드로 넣는다.
+workflow.add_node('qa_critic', qa_critic_agent)
+workflow.add_node('human_approval', human_approval_agent)
+workflow.add_node('final_publish', final_publish_agent)
 
 workflow.add_edge(START, 'supervisor')
 
-def route_from_supervisor(state: BlogState) -> str:
+def route_from_supervisor(state: TechDocState) -> str:
     # 아직은 supervisor_agent가 state의 'next_step'을 업데이트 했다고 가정
     return state.get('next_step')
 
 workflow.add_conditional_edges('supervisor', route_from_supervisor,
                                {'context_injection' : 'context_injection',
-                                'intro_graph' : 'intro_graph',
-                                'continuation_graph': 'continuation_graph',
-                                'critic' : 'critic',
-                                'human_review': 'human_review',
-                                'final' : 'final'
+                                'new_doc_graph' : 'new_doc_graph',
+                                'update_doc_graph': 'update_doc_graph',
+                                'qa_critic' : 'qa_critic',
+                                'human_approval': 'human_approval',
+                                'final_publish': 'final_publish',
                                    })
 
 workflow.add_edge('context_injection', 'supervisor')
-workflow.add_edge('intro_graph', 'supervisor')
-workflow.add_edge('continuation_graph', 'supervisor')
-workflow.add_edge('critic', 'supervisor')
+workflow.add_edge('new_doc_graph', 'supervisor')
+workflow.add_edge('update_doc_graph', 'supervisor')
+workflow.add_edge('qa_critic', 'supervisor')
 
-workflow.add_edge('human_review', 'supervisor')
-workflow.add_edge('final', END)
+workflow.add_edge('human_approval', 'supervisor')
+workflow.add_edge('final_publish', END)
 
 memory = MemorySaver()
 
 app = workflow.compile(
     checkpointer= memory,
-    interrupt_before= ['human_review']
+    interrupt_before= ['human_approval']
 )
 
 # # 컴파일된 app 객체 사용
 # https://mermaid.live 이 사이트에 출력된 결롸를 넣으면 시각화 그래프를 얻을 수 잇다.
-# mermaid_code = app.get_graph().draw_mermaid()
-# print(mermaid_code)
+
+# print(app.get_graph().draw_mermaid())
+# print(new_doc_app.get_graph().draw_mermaid())
+# print(update_doc_app.get_graph().draw_mermaid())
