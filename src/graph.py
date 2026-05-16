@@ -50,8 +50,9 @@ new_doc_workflow.add_conditional_edges("new_doc_supervisor", route_new_doc_graph
                                         'structure_planning': 'structure_planning',
                                         'technical_drafting': 'technical_drafting',
                                         "diagram_analysis": "diagram_analysis",
-                                        "compliance_editor": "compliance_editor",                                     }
-                                    )
+                                        "compliance_editor": "compliance_editor",
+                                        "end": END
+                                    })
 
 new_doc_workflow.add_edge("diagram_analysis", "image_placement") # 분석 끝나면 삽입으로
 
@@ -90,8 +91,9 @@ update_doc_workflow.add_conditional_edges('update_doc_supervisor', route_update_
                                                 "structure_planning": "structure_planning",
                                                 "diagram_analysis": "diagram_analysis",
                                                 "technical_drafting": "technical_drafting",
-                                                "compliance_editor": "compliance_editor"                                            }
-                                        )
+                                                "compliance_editor": "compliance_editor",
+                                                "end": END
+                                        })
 
 update_doc_workflow.add_edge("diagram_analysis", "image_placement")
 
@@ -149,5 +151,5 @@ app = workflow.compile(
 # https://mermaid.live 이 사이트에 출력된 결롸를 넣으면 시각화 그래프를 얻을 수 잇다.
 
 # print(app.get_graph().draw_mermaid())
-# print(new_doc_app.get_graph().draw_mermaid())
+print(new_doc_app.get_graph().draw_mermaid())
 # print(update_doc_app.get_graph().draw_mermaid())
