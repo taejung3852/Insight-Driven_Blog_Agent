@@ -26,10 +26,11 @@ class TechDocState(TypedDict):
         'diagram_analysis',                 # 아키텍처 다이어그램 분석
         'technical_drafting',               # 기술 초안 작성
         'compliance_editor',                # 사내 가이드라인 준수 여부 교정
-        'finish'
+        'end'
         ]]    
 
     # 문서 상태 (Outputs & QA)
+    doc_outline: Optional[str]              # 기획 단계의 문서 목차
     doc_draft: Optional[str]                # 기술 문서 초안
     tech_reviewed_content: Optional[str]    # 기술 교정 완성본
     final_doc: Optional[str]                # 최종 승인된 기술 문서

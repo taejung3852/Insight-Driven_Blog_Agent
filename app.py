@@ -3,211 +3,221 @@ import tempfile
 import os
 import re
 import uuid
-from src.graph import app as blog_workflow
-from src.memory import get_all_topics, delete_topic, get_topic_tone, update_topic_tone, save_user_guideline
-from src.utils import analyze_custom_tone, synthesize_feedback_and_edits
+from src.graph import app as doc_workflow
+from src.memory import get_all_systems, delete_system, save_user_guideline
+from src.utils import extract_tech_doc_style, synthesize_tech_feedback
 
-# 1. 페이지 기본 설정
+# 페이지 인프라 정의
 st.set_page_config(
-    page_title="Insight-Driven Blog Agent",
-    page_icon="✍️",
+    page_title="AutoDoc-MAS: Enterprise Technical Documentation System",
     layout="wide"
 )
 
-st.title("✍️ Insight-Driven 블로그 에이전트")
-st.markdown("나만의 학습 인사이트와 캡처 이미지를 바탕으로 블로그 포스팅을 자동 생성합니다.")
+st.title("AutoDoc-MAS: Enterprise Tech-Doc Control Center")
+st.markdown("파편화된 원시 기술 데이터를 수집하여 사내 기술 표준 가이드라인에 부합하는 엔터프라이즈급 기술 문서를 생성하고 형상을 관리합니다.")
 
-# 2. 사이드바 설정 (Room 및 환경 설정)
+# 사이드바 인프라 제어 (시스템 형상 관리 및 규격 설정)
 with st.sidebar:
-    st.header("📁 워크스페이스 (Topic Room)")
+    st.header("System Configuration")
     
-    existing_topics = get_all_topics()
-    room_options = ["새로운 토픽(방) 만들기..."] + existing_topics
+    existing_systems = get_all_systems()
+    system_options = ["Create New System Namespace..."] + existing_systems
     
-    if 'new_topic_to_select' in st.session_state:
-        if st.session_state['new_topic_to_select'] not in room_options:
-            room_options.append(st.session_state['new_topic_to_select'])
-    
-    def on_room_change():
+    if 'new_system_to_select' in st.session_state:
+        if st.session_state['new_system_to_select'] not in system_options:
+            system_options.append(st.session_state['new_system_to_select'])
+            
+    def on_system_change():
         if 'thread_id' in st.session_state:
             del st.session_state['thread_id']
-        if 'new_topic_to_select' in st.session_state:
-            del st.session_state['new_topic_to_select']
-    
-    default_idx = 0
-    if 'new_topic_to_select' in st.session_state and st.session_state['new_topic_to_select'] in room_options:
-        default_idx = room_options.index(st.session_state['new_topic_to_select'])
-    
-    selected_room = st.selectbox(
-        "현재 입장한 토픽 방", 
-        options=room_options,
-        index=default_idx,
-        key="room_selector",
-        on_change=on_room_change
+        if 'new_system_to_select' in st.session_state:
+            del st.session_state['new_system_to_select']
+            
+    selected_system = st.selectbox(
+        "Target System Namespace",
+        options=system_options,
+        index=0,
+        key="system_selector",
+        on_change=on_system_change
     )
     
-    if selected_room == "새로운 토픽(방) 만들기...":
-        current_topic = st.text_input("새로운 토픽 이름을 입력하세요", placeholder="예: LangGraph 멀티 에이전트")
-        is_first_post = True
+    if selected_system == "Create New System Namespace...":
+        system_name = st.text_input("System Identifier", placeholder="e.g., Auth-Service-v2")
+        is_update_request = False
     else:
-        current_topic = selected_room
-        is_first_post = False
-        st.success(f"📚 '{current_topic}' 연재 방에 입장했습니다.")
+        system_name = selected_system
+        is_update_request = True
+        st.info(f"Active System Namespace: {system_name}")
         
-        if st.button(f"🗑️ '{current_topic}' 방 삭제하기", use_container_width=True):
-            if delete_topic(current_topic):
-                st.toast(f"'{current_topic}' 방 삭제 완료!", icon="✅")
-                st.rerun() 
-        
-    st.session_state['current_topic'] = current_topic
-    st.session_state['is_first_post'] = is_first_post
-        
-    st.markdown("---")
-    st.header("⚙️ 에이전트 환경 설정")
+        if st.button("Delete System Data", use_container_width=True):
+            if delete_system(system_name):
+                st.toast(f"Namespace '{system_name}' Deleted Successfully.")
+                st.rerun()
+                
+    st.session_state['system_name'] = system_name
+    st.session_state['is_update_request'] = is_update_request
     
-    saved_tone = ""
-    if not is_first_post and current_topic:
-        saved_tone = get_topic_tone(current_topic)
-        
-    if saved_tone:
-        st.info("🔒 이 연재 방에 고정된 톤앤매너가 자동 적용됩니다.")
-        st.markdown(f"> {saved_tone}")
-        tone_and_manner = saved_tone
+    st.markdown("---")
+    st.header("Artifact Specifications")
+    
+    doc_type = st.selectbox(
+        "Document Type",
+        options=["feature_spec", "release_note", "api_doc"],
+        index=0
+    )
+    
+    st.markdown("---")
+    st.header("Compliance & Quality Assurance")
+    
+    doc_style_guide_input = st.text_area(
+        "Corporate Style Guide / Compliance Guidelines",
+        height=150,
+        placeholder="e.g., Use 3rd-person objective tone. Maintain markdown hierarchy."
+    )
+    
+    style_extraction_method = st.checkbox("Extract Style from Existing Document Sample")
+    if style_extraction_method:
+        sample_doc_text = st.text_area("Paste Corporate Document Sample", height=150)
+        if st.button("Analyze & Extract Guidelines", use_container_width=True):
+            if sample_doc_text.strip():
+                with st.spinner("Analyzing text patterns..."):
+                    extracted_guide = extract_tech_doc_style(sample_doc_text)
+                    st.session_state['extracted_guide'] = extracted_guide
+                st.success("Extraction Completed.")
+        doc_style_guide = st.session_state.get('extracted_guide', doc_style_guide_input)
     else:
-        tone_setting_method = st.radio("문체 설정 방식", ["프리셋 선택", "내 글투 분석 (사용자 정의)"])
-        if tone_setting_method == "프리셋 선택":
-            tone_and_manner = st.selectbox("문체 프리셋", ["친절하고 열정적인 1인칭", "전문적이고 객관적인", "유머러스하고 재치있는", "담담한 회고록 스타일"])
-        else:
-            sample_text = st.text_area("평소 쓰는 글을 복사해 넣어주세요.", height=150)
-            if st.button("🔍 내 글투 분석하기", use_container_width=True):
-                if sample_text.strip():
-                    with st.spinner("글투 분석 중..."):
-                        analyzed_tone = analyze_custom_tone(sample_text)
-                        st.session_state['custom_tone'] = analyzed_tone
-                    st.success("분석 완료!")
-            tone_and_manner = st.session_state.get('custom_tone', "분석된 글투가 여기에 적용됩니다.")
-            
-    max_revisions = st.slider("Critic 최대 반려 횟수", min_value=1, max_value=3, value=2)
+        doc_style_guide = doc_style_guide_input
+        
+    max_revisions = st.slider("Max QA Critic Revisions", min_value=1, max_value=3, value=2)
     st.markdown("---")
 
-# 3. 메인 입력 화면
+# 메인 작업 공간 (데이터 수집 및 적재)
 col1, col2 = st.columns([1, 1])
 with col1:
-    display_topic = st.session_state.get('current_topic')
-    display_name = display_topic if display_topic else '새로운 토픽'
-    st.subheader(f"💡 [{display_name}] 인사이트 입력")
-    insight_input_type = st.radio("입력 방식", ["텍스트 직접 입력", "파일 업로드 (.md, .txt)"], horizontal=True)
+    active_name = st.session_state.get('system_name') if st.session_state.get('system_name') else 'Unassigned'
+    st.subheader(f"Raw Technical Data Input [{active_name}]")
+    source_input_type = st.radio("Source Format", ["Direct Text / Logs / Commits", "File Upload (.md, .txt)"], horizontal=True)
     
-    learning_insights = ""
-    if insight_input_type == "텍스트 직접 입력":
-        learning_insights = st.text_area("오늘의 핵심 깨달음 (Insight)", height=150)
+    technical_source = ""
+    if source_input_type == "Direct Text / Logs / Commits":
+        technical_source = st.text_area("Input Fragmented Technical Source Data", height=200)
     else:
-        uploaded_file = st.file_uploader("인사이트 파일 업로드", type=['txt', 'md'])
+        uploaded_file = st.file_uploader("Upload Technical Source File", type=['txt', 'md'])
         if uploaded_file:
-            learning_insights = uploaded_file.getvalue().decode("utf-8")
+            technical_source = uploaded_file.getvalue().decode("utf-8")
 
 with col2:
-    st.subheader("🖼️ 첨부 이미지 (선택 사항)")
-    uploaded_images = st.file_uploader("캡처 이미지나 다이어그램을 올려주세요.", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True)
+    st.subheader("Architecture Diagrams / Visual Specs")
+    uploaded_diagrams = st.file_uploader("Upload Architecture Diagrams or ERD Images", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True)
 
-# 4. 실행 버튼 및 워크플로우 구동
-if st.button("🚀 블로그 포스팅 생성 시작!", use_container_width=True, type="primary"):
-    topic_to_run = st.session_state.get('current_topic')
-    if not topic_to_run or not learning_insights:
-        st.error("토픽 이름과 인사이트를 모두 입력해주세요!")
+# 파이프라인 트리거
+if st.button("Execute AutoDoc-MAS Pipeline", use_container_width=True, type="primary"):
+    system_to_run = st.session_state.get('system_name')
+    if not system_to_run or not technical_source:
+        st.error("Execution Failed: System Identifier and Technical Source Data are strictly required.")
         st.stop()
         
-    temp_image_paths = []
-    if uploaded_images:
+    temp_diagram_paths = []
+    if uploaded_diagrams:
         temp_dir = tempfile.mkdtemp()
-        for img in uploaded_images:
+        for img in uploaded_diagrams:
             temp_path = os.path.join(temp_dir, img.name)
             with open(temp_path, "wb") as f:
                 f.write(img.getbuffer())
-            temp_image_paths.append(temp_path)
+            temp_diagram_paths.append(temp_path)
 
     st.session_state['thread_id'] = str(uuid.uuid4())
     config = {"configurable": {"thread_id": st.session_state['thread_id']}}
 
     initial_state = {
-        "is_first_post": st.session_state.get('is_first_post', True),
-        "current_topic": topic_to_run,
-        "tone_and_manner": tone_and_manner,
-        "learning_insights": learning_insights,
-        "captured_images": temp_image_paths,
+        "doc_type": doc_type,
+        "system_name": system_to_run,
+        "doc_style_guide": doc_style_guide,
+        "technical_source": technical_source,
+        "is_update_request": st.session_state.get('is_update_request', False),
         "revision_count": 0,
-        "max_revisions": max_revisions
+        "max_revisions": max_revisions,
+        "captured_diagrams": temp_diagram_paths
     }
 
     st.markdown("---")
-    st.subheader("🤖 에이전트 작업 현황")
+    st.subheader("Agent Telemetry & Execution Logs")
     
-    with st.status("워크플로우 실행 중...", expanded=True) as status:
-        for output in blog_workflow.stream(initial_state, config=config, stream_mode="updates"):
+    with st.status("Initializing StateGraph Infrastructure...", expanded=True) as status:
+        for output in doc_workflow.stream(initial_state, config=config, stream_mode="updates"):
             for node_name, state_update in output.items():
-                st.write(f"✅ **[{node_name}]** 에이전트 작업 완료")
-        status.update(label="에이전트 작업 완료 (검토 대기 중) 🎉", state="complete", expanded=False)
+                st.write(f"Node Executed Successfully: [{node_name}]")
+        status.update(label="Pipeline Suspended: Awaiting Human Verification", state="complete", expanded=False)
 
-# 5. 결과물 시각화 및 HITL(사람 개입) 제어
+# HITL 및 수동 재정의 (Manual Override) 엔지니어링 파트
 if 'thread_id' in st.session_state:
     config = {"configurable": {"thread_id": st.session_state['thread_id']}}
-    current_snapshot = blog_workflow.get_state(config)
+    current_snapshot = doc_workflow.get_state(config)
     full_state = current_snapshot.values
     
-    is_paused = len(current_snapshot.next) > 0 and current_snapshot.next[0] == "human_review"
+    is_paused = len(current_snapshot.next) > 0 and current_snapshot.next[0] == "human_approval"
     
     if is_paused:
         st.markdown("---")
-        st.warning("✋ 에디터의 초안 작성이 끝났습니다. 최종본을 확인하고 직접 수정하거나 피드백을 남겨주세요.")
+        st.warning("Verification Needed: Compliance and drafting stages completed. Review the artifact below.")
         
-        draft_text = full_state.get("polished_content", "")
-        edited_text = st.text_area("✍️ 최종본 직접 수정 (Manual Override)", value=draft_text, height=450)
+        draft_text = full_state.get("tech_reviewed_content", "")
+        edited_text = st.text_area("Technical Document Editor (Manual Override)", value=draft_text, height=500)
         
         f_col1, f_col2 = st.columns(2)
         with f_col1:
-            feedback_tone = st.text_input("🗣️ 말투 피드백", placeholder="예: 이모지를 적절히 섞어줘...")
+            feedback_tech = st.text_input("Technical Fact Correction Feedback", placeholder="e.g., Modify the API endpoint response block to include error schemas.")
         with f_col2:
-            feedback_struct = st.text_input("🏗️ 구조 피드백", placeholder="예: 첫 문단은 흥미 유발 위주로...")
-        
-        if st.button("✅ 최종 승인 및 저장", type="primary", use_container_width=True):
-            with st.spinner("최종 수정본과 피드백을 종합 분석 중입니다... 🧠"):
-                # 직접 수정한 내역이나 피드백이 있는 경우 분석 실행
-                if feedback_tone or feedback_struct or (draft_text != edited_text):
-                    synthesized = synthesize_feedback_and_edits(edited_text, feedback_tone, feedback_struct)
-                    
-                    if synthesized.get("tone"): 
-                        update_topic_tone(full_state['current_topic'], synthesized["tone"])
-                    if synthesized.get("structure"): 
-                        save_user_guideline(full_state['current_topic'], synthesized["structure"])
+            feedback_compliance = st.text_input("Compliance & Format Feedback", placeholder="e.g., Re-format the code snippet to follow standard conventions.")
             
-            # 상태 업데이트 및 수동 수정본 주입
-            blog_workflow.update_state(
+        if st.button("Approve & Publish Document", type="primary", use_container_width=True):
+            with st.spinner("Processing structural adjustments and optimization..."):
+                if feedback_tech or feedback_compliance or (draft_text != edited_text):
+                    synthesized = synthesize_tech_feedback(edited_text, feedback_tech, feedback_compliance)
+                    
+                    if synthesized.get("technical_rule"):
+                        # 백엔드 피드백 보관소 활용 명시
+                        save_user_guideline(full_state['system_name'], synthesized["technical_rule"])
+                        
+            # StateGraph 제어권 반환 데이터 구성
+            doc_workflow.update_state(
                 config,
-                {"human_review_complete": True, "final_content": edited_text}
+                {
+                    "human_review_complete": True, 
+                    "final_doc": edited_text,
+                    "human_feedback_technical": feedback_tech,
+                    "human_feedback_compliance": feedback_compliance
+                }
             )
             
-            with st.spinner("최종 발행 진행 중..."):
-                for _ in blog_workflow.stream(None, config=config):
-                    pass 
-            
-            st.success("🎉 최종 발행 및 AI 학습이 완료되었습니다!")
+            with st.spinner("Executing final synchronization and persistence..."):
+                for _ in doc_workflow.stream(None, config=config):
+                    pass
+                    
+            st.success("Artifact Saved and Vector Database Synchronized Successfully.")
             st.rerun()
             
-    else: 
-        st.markdown("### 📋 최종 결과물 확인")
-        with st.expander("🔍 작업 내역 상세 보기"):
-            if "outline" in full_state: st.markdown(f"**[기획자 아웃라인]**\n\n{full_state['outline']}")
-            if "image_information" in full_state: st.success(f"**[시각 분석 내역]**\n\n{full_state['image_information']}")
+    else:
+        st.markdown("### Production Technical Artifact View")
+        with st.expander("System Telemetry Details"):
+            if "doc_outline" in full_state: 
+                st.markdown(f"**[Generated Document Outline]**\n\n{full_state['doc_outline']}")
+            if "diagram_analysis_result" in full_state: 
+                st.info(f"**[Vision Model Diagram Analysis Result]**\n\n{full_state['diagram_analysis_result']}")
 
-        final_text = full_state.get("final_content") or full_state.get("polished_content")
+        final_artifact = full_state.get("final_doc") or full_state.get("tech_reviewed_content")
         
-        if final_text:
-            st.success("✨ 사람의 최종 승인이 완료된 포스팅입니다.")
-            preview_tab, code_tab = st.tabs(["✨ 블로그 미리보기", "📄 마크다운 소스코드"])
+        if final_artifact:
+            st.success("Verified Artifact Status: Certified and Synced.")
+            preview_tab, code_tab = st.tabs(["Rendered Specification View", "Markdown Source Code"])
             with preview_tab:
-                # 미리보기 이미지 치환
-                display_text = re.sub(r'', r'\n\n> 🖼️ **[여기에 \1 이미지가 배치됩니다]**\n\n', final_text)
+                # 콤포넌트 수준 다이어그램 삽입 마커 파싱 및 뷰어 치환 정규식 처리
+                display_text = re.sub(
+                    r'<!--\s*\[Diagram:\s*(.*?)\]\s*-->',
+                    r'\n\n> 🖼️ **[Diagram Resource Embedded: \1]**\n\n',
+                    final_artifact,
+                    flags=re.IGNORECASE
+                )
                 st.markdown(display_text)
             with code_tab:
-                st.info("코드를 복사해서 블로그 에디터에 붙여넣으세요!")
-                st.code(final_text, language="markdown")
+                st.code(final_artifact, language="markdown")

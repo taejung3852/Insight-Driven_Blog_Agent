@@ -1,14 +1,12 @@
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_text_splitters import CharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
+from langchain_core.messages import SystemMessage, HumanMessage
+from src.utils import embeddings, writer_llm
 import streamlit as st
 
 load_dotenv()
-# 1. 임베딩 모델 설정
-# text-embedding-3-small은 OpenAI의 최신 임베딩 모델로 성능이 좋고 비용이 매우 저렴하다
-embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
 text_splitter = CharacterTextSplitter(
     chunk_size = 500,
@@ -16,9 +14,8 @@ text_splitter = CharacterTextSplitter(
     separator='\n'
 )
 
-# 2. 로컬 DB 저장소 경로
 DB_DIR = "./chroma_db"
-COLLECTION_NAME = "blog_memory"
+COLLECTION_NAME = "techdoc_memory"
 @st.cache_resource
 def get_vector_db():
     """ChromaDB 인스턴스를 초기화하고 반환합니다."""
@@ -28,72 +25,92 @@ def get_vector_db():
         persist_directory=DB_DIR
     )
 
-def save_blog_context(topic: str, context_text: str, tone: str = ''):
+def save_doc_context(system_name: str, context_text: str):
     """
-    완성된 블로그 글의 핵심 맥락을 VectorDB에 저장합니다.
+    승인된 시스템 아키텍처 및 명세의 핵심 맥락을 VectorDB에 저장합니다.
     """
     db = get_vector_db()
     
     # Document 객체로 포장해서 저장 (메타데이터로 주제를 달아줍니다)
     raw_doc = Document(
         page_content=context_text,
-        metadata={"topic": topic, 'tone': tone}
+        metadata={"system_name": system_name}
     )
+    
     docs = text_splitter.split_documents([raw_doc])
     db.add_documents(docs)
-    print(f"  -> 💾 VectorDB 저장 완료: [{topic}]의 맥락이 기록되었습니다.")
+    print(f"  -> VectorDB 저장 완료: [{system_name}]의 맥락이 기록되었습니다.")
 
-def retrieve_past_context(current_topic: str, k: int = 1) -> str:
+def retrieve_past_context(system_name: str, k: int = 1) -> str:
     """
-    새로운 포스팅 주제와 가장 유사한 과거 맥락을 VectorDB에서 검색합니다.
-    k는 가져올 문서의 개수입니다.
+    업데이트 대상 시스템과 가장 유사한 과거 아키텍처 맥락을 VectorDB에서 검색합니다.
     """
     db = get_vector_db()
     
     # DB에 데이터가 있는지 먼저 확인
     if not db.get()['documents']:
-         return "아직 저장된 이전 포스팅 맥락이 없습니다."
+         return "아직 저장된 이전 시스템 맥락이 없습니다."
 
     # 현재 주제(current_topic)를 쿼리로 날려서 가장 비슷한 과거 글을 찾기 
-    query = f"""
-    **Role:**
-    당신은 VectorDB 검색 쿼리 최적화 전문가입니다.
+    sys_msg = f"""
+    # Role
+    당신은 시스템 아키텍처 VectorDB 검색 쿼리 최적화 전문가입니다.
 
-    **Objective:**
-    주어진 '현재 블로그 주제'를 바탕으로, 과거 데이터베이스에서 가장 연관성 높은 문서를 찾기 위한 '검색 키워드 묶음'을 생성하세요.
+    # Instructions
+    주어진 '시스템명'을 바탕으로, 과거 데이터베이스에서 연관성 높은 기술 문서를 찾기 위한 '검색 키워드 묶음'을 생성하십시오.
 
-    **Context:**
-    - 현재 주제: {current_topic}
+    # Steps
+    1. 시스템명에서 핵심이 되는 기술적 도메인이나 주요 기능을 유추하십시오.
+    2. 해당 시스템과 빈번하게 연관되는 IT 기술 용어, 개념어, 또는 컴포넌트 이름을 3~5개 추출하십시오.
 
-    **Rules:**
-    - 문장형태로 작성하지 마세요. (예: "~에 대해 알려줘" 금지)
-    - 현재 주제와 관련된 IT 기술 용어, 개념어, 동의어만 3~5개 추출하세요.
-    - 쉼표로 구분된 단어들만 출력하세요.
+    # Expectations
+    이 쿼리는 VectorDB에서 과거 아키텍처의 유사도 검색(Similarity Search)을 수행하는 데 직접적으로 사용됩니다.
 
-    **Format:**
+    # Narrowing
+    - 절대 문장 형태로 작성하지 마십시오. (예: "~에 대해 알려줘" 금지)
+    - 오직 쉼표(,)로 구분된 단어들만 출력하십시오.
+    
+    [Format]
     키워드1, 키워드2, 키워드3
     """
+    human_msg = f"""
+    [시스템명]
+    {system_name}
+    """
+    
+    # 원래는 동적 변수는 sys_msg에 안넣지만 쿼리는 리트리버 쿼리는 그런 구분이 없어서 하나로 합침
+    response = writer_llm.invoke([
+        SystemMessage(content=sys_msg),
+        HumanMessage(content=human_msg)
+        ])
+    
+    raw_query = response.content.strip()
+    parsed_keywords = " ".join([word.strip() for word in raw_query.split(',') if word.strip()])
+
+    query = parsed_keywords if parsed_keywords else system_name # 파싱 실패 시 기본 시스템명으로 폴백(Fallback)
+
+    print(f"  -> 🔍 RAG 추출 검색 키워드: {query}")
     
     results = db.similarity_search(
         query,
         k=k,
-        filter={'topic': current_topic}
+        filter={'system_name': system_name}
     ) 
     
     if not results:
-        return "관련된 이전 포스팅 맥락을 찾지 못했습니다."
+        return "관련된 이전 시스템 맥락을 찾지 못했습니다."
         
     # 검색된 문서들을 하나의 문자열로 취합
     context_list = []
     for i, doc in enumerate(results):
-        topic = doc.metadata.get('topic', '알 수 없는 주제')
-        context_list.append(f"[과거 포스팅 {i+1} - {topic}]\n{doc.page_content}")
+        sys_name = doc.metadata.get('system_name', '알 수 없는 시스템')
+        context_list.append(f"[과거 시스템 {i+1} - {sys_name}]\n{doc.page_content}")
         
     return "\n\n".join(context_list)
 
 
-def get_all_topics() -> list[str]:
-    """VectorDB에 저장된 모든 고유 토픽(방 이름) 목록 불러오기"""
+def get_all_systems() -> list[str]:
+    """VectorDB에 저장된 모든 고유 시스템명(system_name) 목록 불러오기"""
     db = get_vector_db() # 캐싱된 DB 호출
     try:
         # ChromaDB에서 모든 데이터의 메타데이터 불러오기
@@ -103,65 +120,35 @@ def get_all_topics() -> list[str]:
         if not result or not result.get("metadatas"):
             return []
             
-        # 메타데이터에서 'topic' 키의 값만 추출하여 중복 제거
-        topics = set()
+        # 메타데이터에서 'system_name' 키의 값만 추출하여 중복 제거
+        systems = set()
         for metadata in result["metadatas"]:
-            if metadata and "topic" in metadata:
-                topics.add(metadata["topic"])
+            if metadata and "system_name" in metadata:
+                systems.add(metadata["system_name"])
                 
-        return list(topics)
+        return list(systems)
     except Exception as e:
-        print(f"토픽 목록 로드 중 에러 발생: {e}")
+        print(f"시스템 목록 로드 중 에러 발생: {e}")
         return []
 
-def delete_topic(topic: str) -> bool:
-    """VectorDB에서 특정 토픽(방)의 모든 데이터를 삭제합니다."""
+def delete_system(system_name: str) -> bool:
+    """VectorDB에서 특정 시스템의 모든 데이터를 삭제합니다."""
     db = get_vector_db()
     try:
         collection = db._collection
-        # metadata의 'topic' 필드가 입력받은 topic과 일치하는 데이터 모두 삭제
-        collection.delete(where={"topic": topic})
-        print(f"🗑️ [System] '{topic}' 관련 데이터가 ChromaDB에서 삭제되었습니다.")
+        # metadata의 'system_name' 필드가 일치하는 데이터 모두 삭제
+        collection.delete(where={"system_name": system_name})
+        print(f"🗑️ [System] '{system_name}' 관련 데이터가 ChromaDB에서 삭제되었습니다.")
         return True
     except Exception as e:
-        print(f"토픽 삭제 중 에러 발생: {e}")
+        print(f"시스템 데이터 삭제 중 에러 발생: {e}")
         return False
 
-def get_topic_tone(topic: str) -> str:
-    """특정 방에 저장된 톤앤매너를 가져옵니다."""
-    db = get_vector_db()
-    result = db._collection.get(where={"topic": topic}, include=["metadatas"])
-    if result and result.get("metadatas"):
-        for meta in result["metadatas"]:
-            if meta and "tone" in meta and meta["tone"]:
-                return meta["tone"]
-    return ""
-
-def update_topic_tone(topic: str, new_tone: str):
-    """사용자 피드백을 반영하여 특정 방의 톤앤매너를 영구 업데이트합니다."""
-    db = get_vector_db()
-    collection = db._collection
-    
-    # 기존 데이터의 메타데이터를 확인
-    result = collection.get(where={"topic": topic})
-    if result and result.get("ids"):
-        # 기존 메타데이터 가져와서 tone만 수정
-        metadatas = result["metadatas"]
-        for meta in metadatas:
-            meta["tone"] = new_tone
-        
-        # 수정된 메타데이터로 덮어쓰기
-        collection.update(
-            ids=result["ids"],
-            metadatas=metadatas
-        )
-        print(f"🔄 [System] '{topic}' 방의 톤앤매너가 사용자 피드백으로 업데이트되었습니다.")
-
-def save_user_guideline(topic: str, guideline: str):
-    """사용자가 지적한 '글의 구조/내용' 피드백을 다음 작성을 위해 가이드라인으로 저장합니다."""
+def save_user_guideline(system_name: str, guideline: str):
+    """사용자가 지적한 기술적/구조적 피드백을 다음 작성을 위해 저장합니다."""
     # Context Injection 단계에서 과거 요약본과 함께 검색될 수 있도록 메타데이터와 함께 저장
-    save_blog_context(
-        topic=topic, 
-        context_text=f"[사용자 피드백/가이드라인 절대 준수]\n{guideline}", 
-        tone=""
+    save_doc_context(
+        system_name=system_name, 
+        context_text=f"[사용자 피드백/가이드라인 절대 준수]\n{guideline}"
     )
+    
