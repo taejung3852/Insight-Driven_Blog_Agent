@@ -50,9 +50,7 @@ new_doc_workflow.add_conditional_edges("new_doc_supervisor", route_new_doc_graph
                                         'structure_planning': 'structure_planning',
                                         'technical_drafting': 'technical_drafting',
                                         "diagram_analysis": "diagram_analysis",
-                                        "compliance_editor": "compliance_editor",
-                                        'finish': END
-                                     }
+                                        "compliance_editor": "compliance_editor",                                     }
                                     )
 
 new_doc_workflow.add_edge("diagram_analysis", "image_placement") # 분석 끝나면 삽입으로
@@ -92,9 +90,7 @@ update_doc_workflow.add_conditional_edges('update_doc_supervisor', route_update_
                                                 "structure_planning": "structure_planning",
                                                 "diagram_analysis": "diagram_analysis",
                                                 "technical_drafting": "technical_drafting",
-                                                "compliance_editor": "compliance_editor",
-                                                'finish':END
-                                            }
+                                                "compliance_editor": "compliance_editor"                                            }
                                         )
 
 update_doc_workflow.add_edge("diagram_analysis", "image_placement")
