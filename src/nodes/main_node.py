@@ -1,22 +1,12 @@
 import os
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from langchain_google_genai import GoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
-from langgraph.graph import END
+from src.utils import writer_llm, critic_llm
 from src.state import TechDocState
 
 # TODO: memory.py와 utils.py의 함수명도 기술 문서 도메인에 맞게 수성 해야함
 from src.memory import retrieve_past_context, save_doc_context
 from src.utils import load_learning_insights
-
-load_dotenv()
-
-# 작성용: 구조적이고 명확한 작성을 위해 T -> 0.4 / 너무 높으면 창의성이 높아져서 일관성이 떨어지고 기술문서에 맞지 않다
-writer_llm = GoogleGenerativeAI(model = 'gemini-3-flash-preview', temperature=0.4)
-
-# 비평 및 검증용: 최대한 엄격하고 일관성을 위해 T -> 0.0
-critic_llm = GoogleGenerativeAI(model = 'gemini-3-flash-preview', temperature=0)
 
 
 # ==============================================
@@ -204,7 +194,6 @@ def final_publish_agent(state: TechDocState) -> dict:
     {final_doc}
     """
     
-    # (주의: writer_llm 객체가 이 파일에 정의되어 있어야 합니다)
     summary_response = writer_llm.invoke([
         SystemMessage(content=sys_msg),
         HumanMessage(content=human_msg)
@@ -213,8 +202,7 @@ def final_publish_agent(state: TechDocState) -> dict:
     summary_text = summary_response.content
     print("  -> 📝 아키텍처 메타데이터 추출 완료. DB 갱신을 진행합니다.")
     
-    # TODO: memory.py 수정 후 save_doc_context 로 변경하고 tone도 빼기
-    save_doc_context(system_name, summary_text, tone='')
+    save_doc_context(system_name, summary_text)
     
     print("\n====================================")
     print(f"✅ [{system_name}] 기술 문서 파이프라인이 성공적으로 종료되었습니다.")

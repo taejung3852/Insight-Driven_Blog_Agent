@@ -1,8 +1,20 @@
 import os
 import base64
 import ast
-from langchain_openai import ChatOpenAI
+from dotenv import load_dotenv
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_core.messages import SystemMessage, HumanMessage
+
+load_dotenv()
+
+# ==============================================
+# LLM 정의
+writer_llm = ChatGoogleGenerativeAI(model = 'gemini-3-flash-preview', temperature=0.4)
+critic_llm = ChatGoogleGenerativeAI(model = 'gemini-3-flash-preview', temperature=0)
+
+# ==============================================
+# Embedding 모델 정의
+embeddings = GoogleGenerativeAIEmbeddings(model ="gemini-embedding-2")
 
 def load_learning_insights(path_or_text: str) -> str:
     """경로면 파일을 읽고, 아니면 텍스트 그대로 반환"""
